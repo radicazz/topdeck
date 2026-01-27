@@ -45,3 +45,11 @@
 - Assets & scripts: `manage_asset` for project assets, `create_script`/`manage_script`/`script_apply_edits` for C# changes.
 - Scenes & prefabs: `manage_scene` for load/save/screenshot; `manage_prefabs` for create/open/save prefab stages.
 - Efficiency: use `batch_execute` for multi-step changes and `refresh_unity` after larger edits.
+
+## Project Update Summary (Jan 2026)
+- Procedural terrain mesh is generated at runtime via a lightweight WFC-style grid, with 3+ paths converging at the center and a path overlay mesh for visibility.
+- Scene wiring: Terrain, Tower (health + auto-attack), EnemySpawner, GameManager, DefenderPlacementManager, and HUD are set up in `Assets/Scenes/SceneGame.unity` using cubes as placeholders.
+- Enemies spawn from path-based locations, move along paths to the tower, attack defenders in range, and damage the tower when close; enemies have health and can be killed.
+- Defender placement uses predetermined, non-path grid cells; clicking a placement spot spawns a defender cube with health and auto-attack.
+- Round-based economy: start at Round 1 with $200; defenders cost $100; kills reward $50; Round 1 spawns 3 enemies and later rounds scale enemy count and stats.
+- HUD (1080p reference scaling) shows tower HP, money, round counter, and GAME OVER; round counter reflects prep/in-progress state.
