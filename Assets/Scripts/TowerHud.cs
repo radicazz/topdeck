@@ -47,7 +47,8 @@ public class TowerHud : MonoBehaviour
 
         if (roundText != null && GameManager.Instance != null)
         {
-            roundText.text = "Round " + GameManager.Instance.CurrentRound;
+            string stateLabel = GameManager.Instance.RoundInProgress ? "" : " (prep)";
+            roundText.text = "Round " + GameManager.Instance.CurrentRound + stateLabel;
         }
 
         if (gameOverText != null)
