@@ -102,14 +102,21 @@ public class ProceduralTerrainGenerator : MonoBehaviour
 
     private void EnsureMaterials()
     {
+        Shader shader = GetDefaultShader();
+        if (shader == null)
+        {
+            Debug.LogWarning("ProceduralTerrainGenerator: No compatible shader found for terrain materials.");
+            return;
+        }
+
         if (groundMaterial == null)
         {
-            groundMaterial = new Material(Shader.Find("Standard")) { color = new Color(0.25f, 0.5f, 0.25f) };
+            groundMaterial = new Material(shader) { color = new Color(0.25f, 0.5f, 0.25f) };
         }
 
         if (pathMaterial == null)
         {
-            pathMaterial = new Material(Shader.Find("Standard")) { color = new Color(0.55f, 0.4f, 0.25f) };
+            pathMaterial = new Material(shader) { color = new Color(0.55f, 0.4f, 0.25f) };
         }
 
         meshRenderer.sharedMaterial = groundMaterial;
@@ -122,6 +129,14 @@ public class ProceduralTerrainGenerator : MonoBehaviour
         if (width % 2 == 0) width += 1;
         if (height % 2 == 0) height += 1;
         if (pathCount < 3) pathCount = 3;
+    }
+
+    private Shader GetDefaultShader()
+    {
+        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null) shader = Shader.Find("Standard");
+        if (shader == null) shader = Shader.Find("Unlit/Color");
+        return shader;
     }
 
     private List<List<Vector2Int>> BuildPaths(System.Random random)
