@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class GameManager : MonoBehaviour
@@ -6,23 +7,23 @@ public class GameManager : MonoBehaviour
     public static bool IsGameOver => Instance != null && Instance.isGameOver;
 
     [Header("References")]
-    public TowerHealth tower;
-    public TowerAttack towerAttack;
-    public EnemySpawner[] spawners;
+    [SerializeField] private TowerHealth tower;
+    [SerializeField] private TowerAttack towerAttack;
+    [SerializeField] private EnemySpawner[] spawners;
 
     [Header("Economy")]
-    public int startingMoney = 200;
-    public int defenderCost = 100;
-    public int rewardPerKill = 50;
+    [SerializeField] private int startingMoney = 200;
+    [SerializeField] private int defenderCost = 100;
+    [SerializeField] private int rewardPerKill = 50;
 
     [Header("Rounds")]
-    public int startingRound = 1;
-    public float roundStartDelay = 2f;
-    public int baseEnemiesPerRound = 3;
-    public int enemiesPerRoundIncrement = 2;
-    public float healthMultiplierPerRound = 0.15f;
-    public float speedMultiplierPerRound = 0.05f;
-    public float damageMultiplierPerRound = 0.1f;
+    [SerializeField] private int startingRound = 1;
+    [SerializeField] private float roundStartDelay = 2f;
+    [SerializeField] private int baseEnemiesPerRound = 3;
+    [SerializeField] private int enemiesPerRoundIncrement = 2;
+    [SerializeField] private float healthMultiplierPerRound = 0.15f;
+    [SerializeField] private float speedMultiplierPerRound = 0.05f;
+    [SerializeField] private float damageMultiplierPerRound = 0.1f;
 
     [Header("State")]
     [SerializeField] private bool isGameOver;
@@ -36,6 +37,11 @@ public class GameManager : MonoBehaviour
 
     private int spawnersCompleted;
     private bool roundQueued;
+    private readonly List<EnemySpawner> activeSpawners = new List<EnemySpawner>();
+
+    public event System.Action<int> MoneyChanged;
+    public event System.Action<int, bool> RoundChanged;
+    public event System.Action GameOverTriggered;
 
     private void Awake()
     {
@@ -83,6 +89,7 @@ public class GameManager : MonoBehaviour
         roundInProgress = false;
         roundQueued = false;
         CancelInvoke(nameof(BeginNextRound));
+        RoundChanged?.Invoke(currentRound, roundInProgress);
 
         if (towerAttack != null)
         {
@@ -100,7 +107,13 @@ public class GameManager : MonoBehaviour
             }
         }
 
+        GameOverTriggered?.Invoke();
         Debug.Log("Game Over: Tower destroyed.");
+    }
+
+    public bool TryPurchaseDefender()
+    {
+        return TrySpend(defenderCost);
     }
 
     public bool TrySpend(int amount)
@@ -116,6 +129,7 @@ public class GameManager : MonoBehaviour
         }
 
         currentMoney -= amount;
+        MoneyChanged?.Invoke(currentMoney);
         return true;
     }
 
@@ -127,6 +141,7 @@ public class GameManager : MonoBehaviour
         }
 
         currentMoney += rewardPerKill;
+        MoneyChanged?.Invoke(currentMoney);
     }
 
     private void BeginNextRound()
@@ -136,14 +151,9 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        if (spawners == null || spawners.Length == 0)
-        {
-            spawners = FindObjectsByType<EnemySpawner>(FindObjectsSortMode.None);
-        }
-
+        RefreshSpawners();
         HookSpawnerEvents();
-
-        if (spawners == null || spawners.Length == 0)
+        if (activeSpawners.Count == 0)
         {
             return;
         }
@@ -152,32 +162,34 @@ public class GameManager : MonoBehaviour
         roundInProgress = true;
         roundQueued = false;
         spawnersCompleted = 0;
+        RoundChanged?.Invoke(currentRound, roundInProgress);
 
         int totalEnemies = baseEnemiesPerRound + Mathf.Max(0, (currentRound - 1) * enemiesPerRoundIncrement);
         float healthMultiplier = 1f + Mathf.Max(0, (currentRound - 1) * healthMultiplierPerRound);
         float speedMultiplier = 1f + Mathf.Max(0, (currentRound - 1) * speedMultiplierPerRound);
         float damageMultiplier = 1f + Mathf.Max(0, (currentRound - 1) * damageMultiplierPerRound);
 
-        int spawnerCount = spawners.Length;
+        int spawnerCount = activeSpawners.Count;
         int perSpawner = spawnerCount > 0 ? totalEnemies / spawnerCount : totalEnemies;
         int remainder = spawnerCount > 0 ? totalEnemies % spawnerCount : 0;
 
         for (int i = 0; i < spawnerCount; i++)
         {
             int spawnCount = perSpawner + (i < remainder ? 1 : 0);
-            spawners[i].StartRound(spawnCount, healthMultiplier, speedMultiplier, damageMultiplier);
+            activeSpawners[i].StartRound(spawnCount, healthMultiplier, speedMultiplier, damageMultiplier);
         }
     }
 
     private void OnSpawnerRoundComplete(EnemySpawner spawner)
     {
         spawnersCompleted++;
-        if (spawnersCompleted < spawners.Length)
+        if (spawnersCompleted < activeSpawners.Count)
         {
             return;
         }
 
         roundInProgress = false;
+        RoundChanged?.Invoke(currentRound, roundInProgress);
         if (!roundQueued)
         {
             roundQueued = true;
@@ -199,7 +211,33 @@ public class GameManager : MonoBehaviour
                 continue;
             }
             spawner.RoundCompleted -= OnSpawnerRoundComplete;
-            spawner.RoundCompleted += OnSpawnerRoundComplete;
+            if (spawner.enabled)
+            {
+                spawner.RoundCompleted += OnSpawnerRoundComplete;
+            }
+        }
+    }
+
+    private void RefreshSpawners()
+    {
+        if (spawners == null || spawners.Length == 0)
+        {
+            spawners = FindObjectsByType<EnemySpawner>(FindObjectsSortMode.None);
+        }
+
+        activeSpawners.Clear();
+        if (spawners == null)
+        {
+            return;
+        }
+
+        foreach (var spawner in spawners)
+        {
+            if (spawner == null || !spawner.enabled)
+            {
+                continue;
+            }
+            activeSpawners.Add(spawner);
         }
     }
 }

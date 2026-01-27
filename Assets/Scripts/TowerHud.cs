@@ -4,21 +4,24 @@ using UnityEngine.UI;
 public class TowerHud : MonoBehaviour
 {
     [Header("References")]
-    public TowerHealth tower;
-    public Text towerHealthText;
-    public Text moneyText;
-    public Text roundText;
-    public Text gameOverText;
+    [SerializeField] private TowerHealth tower;
+    [SerializeField] private Text towerHealthText;
+    [SerializeField] private Text moneyText;
+    [SerializeField] private Text roundText;
+    [SerializeField] private Text gameOverText;
 
     [Header("Layout")]
-    public Vector2 referenceResolution = new Vector2(1920f, 1080f);
-    public Vector2 healthPadding = new Vector2(24f, 24f);
-    public Vector2 moneyPadding = new Vector2(24f, 70f);
-    public Vector2 roundPadding = new Vector2(24f, 24f);
-    public int healthFontSize = 32;
-    public int moneyFontSize = 28;
-    public int roundFontSize = 28;
-    public int gameOverFontSize = 72;
+    [SerializeField] private Vector2 referenceResolution = new Vector2(1920f, 1080f);
+    [SerializeField] private Vector2 healthPadding = new Vector2(24f, 24f);
+    [SerializeField] private Vector2 moneyPadding = new Vector2(24f, 70f);
+    [SerializeField] private Vector2 roundPadding = new Vector2(24f, 24f);
+    [SerializeField] private int healthFontSize = 32;
+    [SerializeField] private int moneyFontSize = 28;
+    [SerializeField] private int roundFontSize = 28;
+    [SerializeField] private int gameOverFontSize = 72;
+
+    private GameManager boundGameManager;
+    private TowerHealth boundTower;
 
     private void Awake()
     {
@@ -33,27 +36,123 @@ public class TowerHud : MonoBehaviour
         }
     }
 
-    private void Update()
+    private void OnEnable()
     {
-        if (towerHealthText != null && tower != null)
+        Bind();
+    }
+
+    private void Start()
+    {
+        Bind();
+    }
+
+    private void OnDisable()
+    {
+        Unbind();
+    }
+
+    private void Bind()
+    {
+        if (tower == null)
         {
-            towerHealthText.text = "Tower HP: " + Mathf.CeilToInt(tower.CurrentHealth);
+            tower = FindFirstObjectByType<TowerHealth>();
         }
 
-        if (moneyText != null && GameManager.Instance != null)
+        if (boundTower != null)
         {
-            moneyText.text = "Money: $" + GameManager.Instance.CurrentMoney;
+            boundTower.HealthChanged -= HandleTowerHealthChanged;
         }
 
-        if (roundText != null && GameManager.Instance != null)
+        boundTower = tower;
+        if (boundTower != null)
         {
-            string stateLabel = GameManager.Instance.RoundInProgress ? "" : " (prep)";
-            roundText.text = "Round " + GameManager.Instance.CurrentRound + stateLabel;
+            boundTower.HealthChanged += HandleTowerHealthChanged;
+        }
+
+        if (boundGameManager != null)
+        {
+            boundGameManager.MoneyChanged -= HandleMoneyChanged;
+            boundGameManager.RoundChanged -= HandleRoundChanged;
+            boundGameManager.GameOverTriggered -= HandleGameOverTriggered;
+        }
+
+        boundGameManager = GameManager.Instance;
+        if (boundGameManager != null)
+        {
+            boundGameManager.MoneyChanged += HandleMoneyChanged;
+            boundGameManager.RoundChanged += HandleRoundChanged;
+            boundGameManager.GameOverTriggered += HandleGameOverTriggered;
+        }
+
+        RefreshAll();
+    }
+
+    private void Unbind()
+    {
+        if (boundTower != null)
+        {
+            boundTower.HealthChanged -= HandleTowerHealthChanged;
+            boundTower = null;
+        }
+
+        if (boundGameManager != null)
+        {
+            boundGameManager.MoneyChanged -= HandleMoneyChanged;
+            boundGameManager.RoundChanged -= HandleRoundChanged;
+            boundGameManager.GameOverTriggered -= HandleGameOverTriggered;
+            boundGameManager = null;
+        }
+    }
+
+    private void RefreshAll()
+    {
+        if (tower != null)
+        {
+            HandleTowerHealthChanged(tower.CurrentHealth);
+        }
+
+        if (boundGameManager != null)
+        {
+            HandleMoneyChanged(boundGameManager.CurrentMoney);
+            HandleRoundChanged(boundGameManager.CurrentRound, boundGameManager.RoundInProgress);
         }
 
         if (gameOverText != null)
         {
             gameOverText.gameObject.SetActive(GameManager.IsGameOver);
+        }
+    }
+
+    private void HandleTowerHealthChanged(float health)
+    {
+        if (towerHealthText != null)
+        {
+            towerHealthText.text = "Tower HP: " + Mathf.CeilToInt(health);
+        }
+    }
+
+    private void HandleMoneyChanged(int money)
+    {
+        if (moneyText != null)
+        {
+            moneyText.text = "Money: $" + money;
+        }
+    }
+
+    private void HandleRoundChanged(int round, bool inProgress)
+    {
+        if (roundText != null)
+        {
+            string stateLabel = inProgress ? "" : " (prep)";
+            roundText.text = "Round " + round + stateLabel;
+        }
+    }
+
+    private void HandleGameOverTriggered()
+    {
+        if (gameOverText != null)
+        {
+            gameOverText.gameObject.SetActive(true);
         }
     }
 

@@ -1,41 +1,42 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer), typeof(MeshCollider))]
 public class ProceduralTerrainGenerator : MonoBehaviour
 {
     [Header("Grid")]
-    [Min(5)] public int width = 25;
-    [Min(5)] public int height = 25;
-    [Min(0.5f)] public float cellSize = 1f;
+    [SerializeField, Min(5)] private int width = 25;
+    [SerializeField, Min(5)] private int height = 25;
+    [SerializeField, Min(0.5f)] private float cellSize = 1f;
 
     [Header("Random")]
-    public bool randomizeSeed = true;
-    public int seed = 0;
-    [Min(1)] public int maxWfcRetries = 8;
+    [SerializeField] private bool randomizeSeed = true;
+    [SerializeField] private int seed = 0;
+    [SerializeField, Min(1)] private int maxWfcRetries = 8;
 
     [Header("Paths")]
-    [Min(3)] public int pathCount = 3;
-    public float pathOverlayHeight = 0.02f;
+    [SerializeField, Min(3)] private int pathCount = 3;
+    [SerializeField] private float pathOverlayHeight = 0.02f;
 
     [Header("Heights")]
-    public float grassHeight = 0f;
-    public float dirtHeight = 0.03f;
-    public float rockHeight = 0.2f;
+    [SerializeField] private float grassHeight = 0f;
+    [SerializeField] private float dirtHeight = 0.03f;
+    [SerializeField] private float rockHeight = 0.2f;
 
     [Header("Materials")]
-    public Material groundMaterial;
-    public Material pathMaterial;
+    [SerializeField] private Material groundMaterial;
+    [SerializeField] private Material pathMaterial;
 
-    public IReadOnlyList<List<Vector3>> PathsWorld => pathsWorld;
+    public IReadOnlyList<IReadOnlyList<Vector3>> PathsWorld => pathsWorld;
     public Vector3 CenterWorld => transform.position;
     public int LastSeedUsed => lastSeedUsed;
     public int Width => width;
     public int Height => height;
     public float CellSize => cellSize;
 
-    private readonly List<List<Vector3>> pathsWorld = new List<List<Vector3>>();
+    private readonly List<IReadOnlyList<Vector3>> pathsWorld = new List<IReadOnlyList<Vector3>>();
     private MeshFilter meshFilter;
     private MeshRenderer meshRenderer;
     private MeshCollider meshCollider;
@@ -553,10 +554,19 @@ public class ProceduralTerrainGenerator : MonoBehaviour
             }
         }
 
+        if (meshFilter.sharedMesh != null)
+        {
+            Destroy(meshFilter.sharedMesh);
+        }
+
         var mesh = new Mesh
         {
             name = "ProceduralTerrain"
         };
+        if (vertexCount > 65535)
+        {
+            mesh.indexFormat = IndexFormat.UInt32;
+        }
         mesh.vertices = vertices;
         mesh.uv = uvs;
         mesh.triangles = triangles;
@@ -571,6 +581,11 @@ public class ProceduralTerrainGenerator : MonoBehaviour
     {
         if (pathOverlay != null)
         {
+            var oldFilter = pathOverlay.GetComponent<MeshFilter>();
+            if (oldFilter != null && oldFilter.sharedMesh != null)
+            {
+                Destroy(oldFilter.sharedMesh);
+            }
             Destroy(pathOverlay);
         }
 
@@ -634,6 +649,10 @@ public class ProceduralTerrainGenerator : MonoBehaviour
         {
             name = "PathOverlay"
         };
+        if (vertices.Length > 65535)
+        {
+            mesh.indexFormat = IndexFormat.UInt32;
+        }
         mesh.vertices = vertices;
         mesh.uv = uvs;
         mesh.triangles = triangles;

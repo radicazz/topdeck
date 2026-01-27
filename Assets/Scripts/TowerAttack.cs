@@ -3,11 +3,28 @@ using UnityEngine;
 public class TowerAttack : MonoBehaviour
 {
     [Header("Attack")]
-    public float range = 6f;
-    public float attackInterval = 0.5f;
-    public float damagePerShot = 1f;
+    [SerializeField] private float range = 6f;
+    [SerializeField] private float attackInterval = 0.5f;
+    [SerializeField] private float damagePerShot = 1f;
+    [SerializeField] private LayerMask targetMask = ~0;
+    [SerializeField, Min(1)] private int queryBufferSize = 32;
 
     private float cooldown;
+    private Collider[] hitBuffer;
+
+    private void Awake()
+    {
+        hitBuffer = new Collider[Mathf.Max(1, queryBufferSize)];
+    }
+
+    public void Configure(float newRange, float interval, float damage, LayerMask mask)
+    {
+        range = newRange;
+        attackInterval = interval;
+        damagePerShot = damage;
+        targetMask = mask;
+        cooldown = 0f;
+    }
 
     private void Update()
     {
@@ -32,27 +49,7 @@ public class TowerAttack : MonoBehaviour
 
     private Enemy FindTarget()
     {
-        Collider[] hits = Physics.OverlapSphere(transform.position, range);
-        Enemy closest = null;
-        float bestDistance = float.PositiveInfinity;
-
-        foreach (var hit in hits)
-        {
-            Enemy enemy = hit.GetComponent<Enemy>();
-            if (enemy == null)
-            {
-                continue;
-            }
-
-            float distance = (enemy.transform.position - transform.position).sqrMagnitude;
-            if (distance < bestDistance)
-            {
-                bestDistance = distance;
-                closest = enemy;
-            }
-        }
-
-        return closest;
+        return TargetingUtils.FindClosestTarget<Enemy>(transform.position, range, targetMask, hitBuffer);
     }
 
     private void OnDrawGizmosSelected()

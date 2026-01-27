@@ -5,40 +5,50 @@ using UnityEngine;
 public class EnemySpawner : MonoBehaviour
 {
     [Header("References")]
-    public ProceduralTerrainGenerator terrain;
-    public TowerHealth tower;
+    [SerializeField] private ProceduralTerrainGenerator terrain;
+    [SerializeField] private TowerHealth tower;
 
     [Header("Spawn")]
-    public float spawnInterval = 2f;
-    public float enemySpeed = 2f;
-    public float enemyMaxHealth = 5f;
-    public float damageToTower = 1f;
-    public float enemyHeightOffset = 0.5f;
+    [SerializeField] private float spawnInterval = 2f;
+    [SerializeField] private float enemySpeed = 2f;
+    [SerializeField] private float enemyMaxHealth = 5f;
+    [SerializeField] private float damageToTower = 1f;
+    [SerializeField] private float enemyHeightOffset = 0.5f;
 
     [Header("Tower Attack")]
-    public float towerAttackRange = 1.4f;
-    public float towerAttackInterval = 0.8f;
+    [SerializeField] private float towerAttackRange = 1.4f;
+    [SerializeField] private float towerAttackInterval = 0.8f;
 
     [Header("Spawn Locations")]
-    public bool spawnOnePerInterval = true;
-    public bool showSpawnMarkers = true;
-    public float spawnMarkerScale = 0.5f;
-    public Color spawnMarkerColor = new Color(0.85f, 0.2f, 0.9f);
+    [SerializeField] private bool spawnOnePerInterval = true;
+    [SerializeField] private bool showSpawnMarkers = true;
+    [SerializeField] private float spawnMarkerScale = 0.5f;
+    [SerializeField] private Color spawnMarkerColor = new Color(0.85f, 0.2f, 0.9f);
 
     [Header("Rounds")]
-    public bool useRounds = true;
+    [SerializeField] private bool useRounds = true;
 
     [Header("Defender Attack")]
-    public float defenderAttackRange = 1.2f;
-    public float defenderAttackInterval = 0.6f;
-    public float damageToDefender = 1f;
+    [SerializeField] private float defenderAttackRange = 1.2f;
+    [SerializeField] private float defenderAttackInterval = 0.6f;
+    [SerializeField] private float damageToDefender = 1f;
+    [SerializeField] private LayerMask defenderTargetMask = ~0;
 
     [Header("Visuals")]
-    public Color enemyColor = new Color(1f, 0.3f, 0.3f);
+    [SerializeField] private GameObject enemyPrefab;
+    [SerializeField] private Color enemyColor = new Color(1f, 0.3f, 0.3f);
+    [SerializeField] private bool applyOverridesToPrefab = true;
+
+    [Header("Pooling")]
+    [SerializeField] private bool usePooling = true;
+    [SerializeField, Min(0)] private int enemyPoolSize = 0;
 
     private readonly List<IReadOnlyList<Vector3>> paths = new List<IReadOnlyList<Vector3>>();
     private readonly List<Vector3> spawnLocations = new List<Vector3>();
     private readonly List<GameObject> spawnMarkers = new List<GameObject>();
+    private readonly Queue<Enemy> enemyPool = new Queue<Enemy>();
+    private Transform enemyContainer;
+    private int enemyLayer = -1;
     private float timer;
     private int spawnIndex;
     private int enemiesToSpawn;
@@ -52,7 +62,31 @@ public class EnemySpawner : MonoBehaviour
 
     public event Action<EnemySpawner> RoundCompleted;
 
+    private void Awake()
+    {
+        ResolveReferences();
+        Transform existing = transform.Find("Enemies");
+        enemyContainer = existing != null ? existing : new GameObject("Enemies").transform;
+        enemyContainer.SetParent(transform, false);
+        enemyLayer = LayerMask.NameToLayer("Enemy");
+        WarmPool();
+    }
+
     private void Start()
+    {
+        ResolveReferences();
+
+        if (terrain == null)
+        {
+            Debug.LogWarning("EnemySpawner: Terrain generator not found.");
+            enabled = false;
+            return;
+        }
+
+        CachePaths();
+    }
+
+    private void ResolveReferences()
     {
         if (terrain == null)
         {
@@ -63,15 +97,6 @@ public class EnemySpawner : MonoBehaviour
         {
             tower = FindFirstObjectByType<TowerHealth>();
         }
-
-        if (terrain == null)
-        {
-            Debug.LogWarning("EnemySpawner: Terrain generator not found.");
-            enabled = false;
-            return;
-        }
-
-        CachePaths();
     }
 
     private void Update()
@@ -115,6 +140,14 @@ public class EnemySpawner : MonoBehaviour
         paths.Clear();
         spawnLocations.Clear();
         ClearSpawnMarkers();
+        if (terrain == null)
+        {
+            ResolveReferences();
+            if (terrain == null)
+            {
+                return;
+            }
+        }
         var source = terrain.PathsWorld;
         if (source == null)
         {
@@ -221,23 +254,11 @@ public class EnemySpawner : MonoBehaviour
         }
     }
 
-    private Enemy CreateEnemy()
-    {
-        GameObject enemyObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        enemyObject.name = "Enemy";
-        enemyObject.transform.localScale = Vector3.one * 0.6f;
-        var renderer = enemyObject.GetComponent<MeshRenderer>();
-        if (renderer != null)
-        {
-            renderer.material.color = enemyColor;
-        }
-
-        return enemyObject.AddComponent<Enemy>();
-    }
-
     private void SpawnEnemy(IReadOnlyList<Vector3> path, float speed, float health, float towerDamage, float defenderDamage, bool trackRound)
     {
-        Enemy enemy = CreateEnemy();
+        Enemy enemy = GetEnemy();
+        enemy.gameObject.SetActive(false);
+        enemy.SetReleaseAction(usePooling ? ReleaseEnemy : null);
         if (trackRound)
         {
             enemy.Died += HandleEnemyDied;
@@ -246,7 +267,81 @@ public class EnemySpawner : MonoBehaviour
         }
 
         enemy.Initialize(path, tower, speed, health, towerDamage, enemyHeightOffset,
-            defenderAttackRange, defenderAttackInterval, defenderDamage, towerAttackRange, towerAttackInterval);
+            defenderAttackRange, defenderAttackInterval, defenderDamage, towerAttackRange, towerAttackInterval, defenderTargetMask);
+        enemy.gameObject.SetActive(true);
+    }
+
+    private void WarmPool()
+    {
+        if (!usePooling || enemyPoolSize <= 0)
+        {
+            return;
+        }
+
+        for (int i = 0; i < enemyPoolSize; i++)
+        {
+            Enemy enemy = CreateEnemyInstance();
+            ReleaseEnemy(enemy);
+        }
+    }
+
+    private Enemy GetEnemy()
+    {
+        if (usePooling && enemyPool.Count > 0)
+        {
+            return enemyPool.Dequeue();
+        }
+
+        return CreateEnemyInstance();
+    }
+
+    private Enemy CreateEnemyInstance()
+    {
+        GameObject enemyObject = enemyPrefab != null
+            ? Instantiate(enemyPrefab)
+            : GameObject.CreatePrimitive(PrimitiveType.Cube);
+
+        enemyObject.name = "Enemy";
+        enemyObject.transform.SetParent(enemyContainer, false);
+        LayerUtils.SetLayerRecursive(enemyObject, enemyLayer);
+
+        if (enemyObject.GetComponentInChildren<Collider>() == null)
+        {
+            enemyObject.AddComponent<BoxCollider>();
+        }
+
+        Enemy enemy = ComponentUtils.GetOrAddComponent<Enemy>(enemyObject);
+
+        if (enemyPrefab == null || applyOverridesToPrefab)
+        {
+            enemyObject.transform.localScale = Vector3.one * 0.6f;
+            var renderer = enemyObject.GetComponent<MeshRenderer>();
+            if (renderer != null)
+            {
+                RendererUtils.SetColor(renderer, enemyColor);
+            }
+        }
+
+        return enemy;
+    }
+
+    private void ReleaseEnemy(Enemy enemy)
+    {
+        if (enemy == null)
+        {
+            return;
+        }
+
+        if (!usePooling)
+        {
+            Destroy(enemy.gameObject);
+            return;
+        }
+
+        enemy.Died -= HandleEnemyDied;
+        enemy.transform.SetParent(enemyContainer, false);
+        enemy.gameObject.SetActive(false);
+        enemyPool.Enqueue(enemy);
     }
 
     private void HandleEnemyDied(Enemy enemy)
@@ -284,7 +379,7 @@ public class EnemySpawner : MonoBehaviour
         var renderer = marker.GetComponent<MeshRenderer>();
         if (renderer != null)
         {
-            renderer.material.color = spawnMarkerColor;
+            RendererUtils.SetColor(renderer, spawnMarkerColor);
         }
         spawnMarkers.Add(marker);
     }

@@ -678,6 +678,10 @@ MonoBehaviour:
   range: 6
   attackInterval: 0.5
   damagePerShot: 1
+  targetMask:
+    serializedVersion: 2
+    m_Bits: 256
+  queryBufferSize: 32
 --- !u!114 &1046336160
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -841,7 +845,14 @@ MonoBehaviour:
   defenderAttackRange: 1.2
   defenderAttackInterval: 0.6
   damageToDefender: 1
+  defenderTargetMask:
+    serializedVersion: 2
+    m_Bits: 512
+  enemyPrefab: {fileID: 0}
   enemyColor: {r: 1, g: 0.3, b: 0.3, a: 1}
+  applyOverridesToPrefab: 1
+  usePooling: 1
+  enemyPoolSize: 10
 --- !u!4 &1310329113
 Transform:
   m_ObjectHideFlags: 0
@@ -900,6 +911,12 @@ MonoBehaviour:
   defenderHeightOffset: 0.5
   defenderScale: {x: 0.8, y: 0.8, z: 0.8}
   defenderColor: {r: 0.2, g: 0.8, b: 0.2, a: 1}
+  applyOverridesToPrefab: 1
+  enemyTargetMask:
+    serializedVersion: 2
+    m_Bits: 256
+  usePooling: 1
+  defenderPoolSize: 6
 --- !u!4 &1690561881
 Transform:
   m_ObjectHideFlags: 0

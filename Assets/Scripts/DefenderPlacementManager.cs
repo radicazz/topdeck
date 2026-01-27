@@ -8,31 +8,50 @@ using UnityEngine.InputSystem;
 public class DefenderPlacementManager : MonoBehaviour
 {
     [Header("References")]
-    public ProceduralTerrainGenerator terrain;
+    [SerializeField] private ProceduralTerrainGenerator terrain;
 
     [Header("Placement Spots")]
-    [Min(1)] public int placementCount = 12;
-    public float spotScale = 0.4f;
-    public float spotHeightOffset = 0.1f;
-    public Color spotAvailableColor = new Color(0.2f, 0.5f, 1f);
-    public Color spotOccupiedColor = new Color(0.35f, 0.35f, 0.35f);
+    [SerializeField, Min(1)] private int placementCount = 12;
+    [SerializeField] private float spotScale = 0.4f;
+    [SerializeField] private float spotHeightOffset = 0.1f;
+    [SerializeField] private Color spotAvailableColor = new Color(0.2f, 0.5f, 1f);
+    [SerializeField] private Color spotOccupiedColor = new Color(0.35f, 0.35f, 0.35f);
 
     [Header("Defender")]
-    public GameObject defenderPrefab;
-    public float defenderMaxHealth = 6f;
-    public float defenderRange = 4f;
-    public float defenderAttackInterval = 0.6f;
-    public float defenderDamage = 1f;
-    public float defenderHeightOffset = 0.5f;
-    public Vector3 defenderScale = new Vector3(0.8f, 0.8f, 0.8f);
-    public Color defenderColor = new Color(0.2f, 0.8f, 0.2f);
+    [SerializeField] private GameObject defenderPrefab;
+    [SerializeField] private float defenderMaxHealth = 6f;
+    [SerializeField] private float defenderRange = 4f;
+    [SerializeField] private float defenderAttackInterval = 0.6f;
+    [SerializeField] private float defenderDamage = 1f;
+    [SerializeField] private float defenderHeightOffset = 0.5f;
+    [SerializeField] private Vector3 defenderScale = new Vector3(0.8f, 0.8f, 0.8f);
+    [SerializeField] private Color defenderColor = new Color(0.2f, 0.8f, 0.2f);
+    [SerializeField] private bool applyOverridesToPrefab = true;
+    [SerializeField] private LayerMask enemyTargetMask = ~0;
+
+    [Header("Pooling")]
+    [SerializeField] private bool usePooling = true;
+    [SerializeField, Min(0)] private int defenderPoolSize = 0;
 
     private readonly List<DefenderPlacementSpot> spots = new List<DefenderPlacementSpot>();
+    private readonly Queue<DefenderHealth> defenderPool = new Queue<DefenderHealth>();
     private Camera mainCamera;
+    private Transform defenderContainer;
+    private int defenderLayer = -1;
+    private int placementLayer = -1;
+
+    private void Awake()
+    {
+        mainCamera = Camera.main;
+        Transform existing = transform.Find("Defenders");
+        defenderContainer = existing != null ? existing : new GameObject("Defenders").transform;
+        defenderContainer.SetParent(transform, false);
+        defenderLayer = LayerMask.NameToLayer("Defender");
+        placementLayer = LayerMask.NameToLayer("Placement");
+    }
 
     private void Start()
     {
-        mainCamera = Camera.main;
         if (terrain == null)
         {
             terrain = FindFirstObjectByType<ProceduralTerrainGenerator>();
@@ -46,6 +65,7 @@ public class DefenderPlacementManager : MonoBehaviour
         }
 
         BuildPlacementSpots();
+        WarmPool();
     }
 
     private void Update()
@@ -157,11 +177,12 @@ public class DefenderPlacementManager : MonoBehaviour
         spotObject.transform.SetParent(transform, false);
         spotObject.transform.position = worldPosition + Vector3.up * spotHeightOffset;
         spotObject.transform.localScale = new Vector3(spotScale, spotScale * 0.2f, spotScale);
+        LayerUtils.SetLayerRecursive(spotObject, placementLayer);
 
         var renderer = spotObject.GetComponent<MeshRenderer>();
         if (renderer != null)
         {
-            renderer.material.color = spotAvailableColor;
+            RendererUtils.SetColor(renderer, spotAvailableColor);
         }
 
         var spot = spotObject.AddComponent<DefenderPlacementSpot>();
@@ -169,46 +190,104 @@ public class DefenderPlacementManager : MonoBehaviour
         spots.Add(spot);
     }
 
-    public DefenderHealth SpawnDefender(Vector3 spotPosition)
+    private void WarmPool()
     {
-        if (GameManager.Instance != null)
+        if (!usePooling || defenderPoolSize <= 0)
         {
-            if (!GameManager.Instance.TrySpend(GameManager.Instance.defenderCost))
-            {
-                return null;
-            }
+            return;
         }
 
+        for (int i = 0; i < defenderPoolSize; i++)
+        {
+            DefenderHealth defender = CreateDefenderInstance();
+            ReleaseDefender(defender);
+        }
+    }
+
+    private DefenderHealth GetDefender()
+    {
+        if (usePooling && defenderPool.Count > 0)
+        {
+            return defenderPool.Dequeue();
+        }
+
+        return CreateDefenderInstance();
+    }
+
+    private DefenderHealth CreateDefenderInstance()
+    {
         GameObject defenderObject = defenderPrefab != null
             ? Instantiate(defenderPrefab)
             : GameObject.CreatePrimitive(PrimitiveType.Cube);
 
         defenderObject.name = "Defender";
-        defenderObject.transform.position = spotPosition + Vector3.up * defenderHeightOffset;
-        defenderObject.transform.localScale = defenderScale;
+        defenderObject.transform.SetParent(defenderContainer, false);
+        LayerUtils.SetLayerRecursive(defenderObject, defenderLayer);
 
-        if (defenderPrefab == null)
-        {
-            var renderer = defenderObject.GetComponent<MeshRenderer>();
-            if (renderer != null)
-            {
-                renderer.material.color = defenderColor;
-            }
-        }
-
-        if (defenderObject.GetComponent<Collider>() == null)
+        if (defenderObject.GetComponentInChildren<Collider>() == null)
         {
             defenderObject.AddComponent<BoxCollider>();
         }
 
-        var health = defenderObject.AddComponent<DefenderHealth>();
+        DefenderHealth health = ComponentUtils.GetOrAddComponent<DefenderHealth>(defenderObject);
+        ComponentUtils.GetOrAddComponent<DefenderAttack>(defenderObject);
+
+        return health;
+    }
+
+    private void ReleaseDefender(DefenderHealth defender)
+    {
+        if (defender == null)
+        {
+            return;
+        }
+
+        if (!usePooling)
+        {
+            Destroy(defender.gameObject);
+            return;
+        }
+
+        defender.transform.SetParent(defenderContainer, false);
+        defender.gameObject.SetActive(false);
+        defenderPool.Enqueue(defender);
+    }
+
+    public DefenderHealth SpawnDefender(Vector3 spotPosition)
+    {
+        if (GameManager.Instance != null && !GameManager.Instance.TryPurchaseDefender())
+        {
+            return null;
+        }
+
+        DefenderHealth health = GetDefender();
+        if (health == null)
+        {
+            return null;
+        }
+
+        GameObject defenderObject = health.gameObject;
+        defenderObject.SetActive(false);
+        defenderObject.transform.SetParent(defenderContainer, false);
+        defenderObject.transform.position = spotPosition + Vector3.up * defenderHeightOffset;
+
+        if (defenderPrefab == null || applyOverridesToPrefab)
+        {
+            defenderObject.transform.localScale = defenderScale;
+            var renderer = defenderObject.GetComponent<MeshRenderer>();
+            if (renderer != null)
+            {
+                RendererUtils.SetColor(renderer, defenderColor);
+            }
+        }
+
         health.Initialize(defenderMaxHealth);
+        health.SetReleaseAction(usePooling ? ReleaseDefender : null);
 
-        var attack = defenderObject.AddComponent<DefenderAttack>();
-        attack.range = defenderRange;
-        attack.attackInterval = defenderAttackInterval;
-        attack.damagePerShot = defenderDamage;
+        DefenderAttack attack = ComponentUtils.GetOrAddComponent<DefenderAttack>(defenderObject);
+        attack.Configure(defenderRange, defenderAttackInterval, defenderDamage, enemyTargetMask);
 
+        defenderObject.SetActive(true);
         return health;
     }
 

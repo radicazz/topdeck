@@ -18,20 +18,6 @@ public class DefenderPlacementSpot : MonoBehaviour
         SetColor(availableColor);
     }
 
-    private void Update()
-    {
-        if (occupied && defender == null)
-        {
-            occupied = false;
-            SetColor(availableColor);
-        }
-    }
-
-    private void OnMouseDown()
-    {
-        TryPlace();
-    }
-
     public void TryPlace()
     {
         if (occupied || manager == null || GameManager.IsGameOver)
@@ -40,10 +26,42 @@ public class DefenderPlacementSpot : MonoBehaviour
         }
 
         defender = manager.SpawnDefender(transform.position);
+        AssignDefender(defender);
+    }
+
+    private void AssignDefender(DefenderHealth newDefender)
+    {
         if (defender != null)
         {
-            occupied = true;
-            SetColor(occupiedColor);
+            defender.Died -= HandleDefenderDied;
+        }
+
+        defender = newDefender;
+        occupied = defender != null;
+        SetColor(occupied ? occupiedColor : availableColor);
+
+        if (defender != null)
+        {
+            defender.Died += HandleDefenderDied;
+        }
+    }
+
+    private void HandleDefenderDied(DefenderHealth deadDefender)
+    {
+        if (defender == deadDefender)
+        {
+            defender.Died -= HandleDefenderDied;
+            defender = null;
+            occupied = false;
+            SetColor(availableColor);
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (defender != null)
+        {
+            defender.Died -= HandleDefenderDied;
         }
     }
 
@@ -51,7 +69,7 @@ public class DefenderPlacementSpot : MonoBehaviour
     {
         if (cachedRenderer != null)
         {
-            cachedRenderer.material.color = color;
+            RendererUtils.SetColor(cachedRenderer, color);
         }
     }
 }

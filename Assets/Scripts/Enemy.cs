@@ -5,19 +5,21 @@ using UnityEngine;
 public class Enemy : MonoBehaviour
 {
     [Header("Stats")]
-    public float maxHealth = 5f;
-    public float moveSpeed = 2f;
-    public float damageToTower = 1f;
-    public float heightOffset = 0.5f;
+    [SerializeField] private float maxHealth = 5f;
+    [SerializeField] private float moveSpeed = 2f;
+    [SerializeField] private float damageToTower = 1f;
+    [SerializeField] private float heightOffset = 0.5f;
 
     [Header("Tower Attack")]
-    public float towerAttackRange = 1.4f;
-    public float towerAttackInterval = 0.8f;
+    [SerializeField] private float towerAttackRange = 1.4f;
+    [SerializeField] private float towerAttackInterval = 0.8f;
 
     [Header("Defender Attack")]
-    public float defenderAttackRange = 1.2f;
-    public float defenderAttackInterval = 0.6f;
-    public float damageToDefender = 1f;
+    [SerializeField] private float defenderAttackRange = 1.2f;
+    [SerializeField] private float defenderAttackInterval = 0.6f;
+    [SerializeField] private float damageToDefender = 1f;
+    [SerializeField] private LayerMask defenderTargetMask = ~0;
+    [SerializeField, Min(1)] private int defenderQueryBufferSize = 12;
 
     private float currentHealth;
     private IReadOnlyList<Vector3> path;
@@ -28,16 +30,20 @@ public class Enemy : MonoBehaviour
     private float towerAttackTimer;
     private bool reachedTower;
     private bool isDead;
+    private Collider[] defenderHits;
+    private Action<Enemy> releaseAction;
 
     public event Action<Enemy> Died;
 
     private void Awake()
     {
         currentHealth = maxHealth;
+        isDead = false;
+        defenderHits = new Collider[Mathf.Max(1, defenderQueryBufferSize)];
     }
 
     public void Initialize(IReadOnlyList<Vector3> pathPoints, TowerHealth towerRef, float speed, float health, float damage, float offset,
-        float defenderRange, float defenderInterval, float defenderDamage, float towerRange, float towerInterval)
+        float defenderRange, float defenderInterval, float defenderDamage, float towerRange, float towerInterval, LayerMask defenderMask)
     {
         path = pathPoints;
         tower = towerRef;
@@ -51,13 +57,23 @@ public class Enemy : MonoBehaviour
         damageToDefender = defenderDamage;
         towerAttackRange = towerRange;
         towerAttackInterval = towerInterval;
+        defenderTargetMask = defenderMask;
         pathIndex = 0;
+        attackTimer = 0f;
+        towerAttackTimer = 0f;
+        defenderTarget = null;
         reachedTower = false;
+        isDead = false;
 
         if (path != null && path.Count > 0)
         {
             transform.position = path[0] + Vector3.up * heightOffset;
         }
+    }
+
+    public void SetReleaseAction(Action<Enemy> release)
+    {
+        releaseAction = release;
     }
 
     private void Update()
@@ -97,18 +113,18 @@ public class Enemy : MonoBehaviour
             return;
         }
 
+        if (isDead)
+        {
+            return;
+        }
+
         currentHealth -= amount;
         if (currentHealth <= 0f)
         {
-            if (isDead)
-            {
-                return;
-            }
-
             isDead = true;
             Died?.Invoke(this);
             GameManager.Instance?.OnEnemyKilled();
-            Destroy(gameObject);
+            Release();
         }
     }
 
@@ -168,26 +184,27 @@ public class Enemy : MonoBehaviour
 
     private DefenderHealth FindDefenderInRange()
     {
-        Collider[] hits = Physics.OverlapSphere(transform.position, defenderAttackRange);
-        DefenderHealth closest = null;
-        float bestDistance = float.PositiveInfinity;
+        return TargetingUtils.FindClosestTarget<DefenderHealth>(transform.position, defenderAttackRange, defenderTargetMask, defenderHits);
+    }
 
-        foreach (var hit in hits)
+    private void Release()
+    {
+        if (releaseAction != null)
         {
-            DefenderHealth defender = hit.GetComponent<DefenderHealth>();
-            if (defender == null)
-            {
-                continue;
-            }
-
-            float distance = (defender.transform.position - transform.position).sqrMagnitude;
-            if (distance < bestDistance)
-            {
-                bestDistance = distance;
-                closest = defender;
-            }
+            releaseAction(this);
         }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
 
-        return closest;
+    private void OnDestroy()
+    {
+        if (!isDead)
+        {
+            isDead = true;
+            Died?.Invoke(this);
+        }
     }
 }

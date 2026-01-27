@@ -3,8 +3,12 @@ using UnityEngine;
 public class DefenderHealth : MonoBehaviour
 {
     [Header("Health")]
-    public float maxHealth = 6f;
+    [SerializeField] private float maxHealth = 6f;
     [SerializeField] private float currentHealth;
+    private bool isDead;
+    private System.Action<DefenderHealth> releaseAction;
+
+    public event System.Action<DefenderHealth> Died;
 
     public float CurrentHealth => currentHealth;
 
@@ -14,12 +18,19 @@ public class DefenderHealth : MonoBehaviour
         {
             currentHealth = maxHealth;
         }
+        isDead = false;
     }
 
     public void Initialize(float health)
     {
         maxHealth = health;
         currentHealth = health;
+        isDead = false;
+    }
+
+    public void SetReleaseAction(System.Action<DefenderHealth> release)
+    {
+        releaseAction = release;
     }
 
     public void TakeDamage(float amount)
@@ -29,10 +40,33 @@ public class DefenderHealth : MonoBehaviour
             return;
         }
 
+        if (isDead)
+        {
+            return;
+        }
+
         currentHealth = Mathf.Max(0f, currentHealth - amount);
         if (currentHealth <= 0f)
         {
-            Destroy(gameObject);
+            isDead = true;
+            Died?.Invoke(this);
+            if (releaseAction != null)
+            {
+                releaseAction(this);
+            }
+            else
+            {
+                Destroy(gameObject);
+            }
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (!isDead)
+        {
+            isDead = true;
+            Died?.Invoke(this);
         }
     }
 }
