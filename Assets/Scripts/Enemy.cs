@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -26,6 +27,9 @@ public class Enemy : MonoBehaviour
     private DefenderHealth defenderTarget;
     private float towerAttackTimer;
     private bool reachedTower;
+    private bool isDead;
+
+    public event Action<Enemy> Died;
 
     private void Awake()
     {
@@ -96,6 +100,14 @@ public class Enemy : MonoBehaviour
         currentHealth -= amount;
         if (currentHealth <= 0f)
         {
+            if (isDead)
+            {
+                return;
+            }
+
+            isDead = true;
+            Died?.Invoke(this);
+            GameManager.Instance?.OnEnemyKilled();
             Destroy(gameObject);
         }
     }

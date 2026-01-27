@@ -170,6 +170,14 @@ public class DefenderPlacementManager : MonoBehaviour
 
     public DefenderHealth SpawnDefender(Vector3 spotPosition)
     {
+        if (GameManager.Instance != null)
+        {
+            if (!GameManager.Instance.TrySpend(GameManager.Instance.defenderCost))
+            {
+                return null;
+            }
+        }
+
         GameObject defenderObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
         defenderObject.name = "Defender";
         defenderObject.transform.position = spotPosition + Vector3.up * defenderHeightOffset;

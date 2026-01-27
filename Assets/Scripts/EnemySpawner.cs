@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -24,6 +25,9 @@ public class EnemySpawner : MonoBehaviour
     public float spawnMarkerScale = 0.5f;
     public Color spawnMarkerColor = new Color(0.85f, 0.2f, 0.9f);
 
+    [Header("Rounds")]
+    public bool useRounds = true;
+
     [Header("Defender Attack")]
     public float defenderAttackRange = 1.2f;
     public float defenderAttackInterval = 0.6f;
@@ -37,6 +41,16 @@ public class EnemySpawner : MonoBehaviour
     private readonly List<GameObject> spawnMarkers = new List<GameObject>();
     private float timer;
     private int spawnIndex;
+    private int enemiesToSpawn;
+    private int enemiesSpawned;
+    private int enemiesAlive;
+    private bool roundActive;
+    private float roundEnemyMaxHealth;
+    private float roundEnemySpeed;
+    private float roundDamageToTower;
+    private float roundDamageToDefender;
+
+    public event Action<EnemySpawner> RoundCompleted;
 
     private void Start()
     {
@@ -67,14 +81,33 @@ public class EnemySpawner : MonoBehaviour
             return;
         }
 
-        timer += Time.deltaTime;
-        if (timer < spawnInterval)
+        if (useRounds)
         {
-            return;
-        }
+            if (!roundActive)
+            {
+                return;
+            }
 
-        timer = 0f;
-        SpawnEnemies();
+            timer += Time.deltaTime;
+            if (timer < spawnInterval)
+            {
+                return;
+            }
+
+            timer = 0f;
+            SpawnRoundTick();
+        }
+        else
+        {
+            timer += Time.deltaTime;
+            if (timer < spawnInterval)
+            {
+                return;
+            }
+
+            timer = 0f;
+            SpawnContinuousEnemies();
+        }
     }
 
     private void CachePaths()
@@ -107,7 +140,60 @@ public class EnemySpawner : MonoBehaviour
         }
     }
 
-    private void SpawnEnemies()
+    public void StartRound(int enemyCount, float healthMultiplier, float speedMultiplier, float damageMultiplier)
+    {
+        CachePaths();
+        enemiesToSpawn = Mathf.Max(0, enemyCount);
+        enemiesSpawned = 0;
+        enemiesAlive = 0;
+        spawnIndex = 0;
+        roundEnemyMaxHealth = enemyMaxHealth * healthMultiplier;
+        roundEnemySpeed = enemySpeed * speedMultiplier;
+        roundDamageToTower = damageToTower * damageMultiplier;
+        roundDamageToDefender = damageToDefender * damageMultiplier;
+        roundActive = enemiesToSpawn > 0;
+        timer = 0f;
+
+        if (!roundActive)
+        {
+            RoundCompleted?.Invoke(this);
+        }
+    }
+
+    private void SpawnRoundTick()
+    {
+        if (paths.Count == 0)
+        {
+            CachePaths();
+        }
+
+        if (paths.Count == 0)
+        {
+            return;
+        }
+
+        int remaining = enemiesToSpawn - enemiesSpawned;
+        if (remaining <= 0)
+        {
+            CheckRoundComplete();
+            return;
+        }
+
+        int spawnCount = spawnOnePerInterval ? 1 : paths.Count;
+        spawnCount = Mathf.Min(spawnCount, remaining);
+
+        for (int i = 0; i < spawnCount; i++)
+        {
+            spawnIndex = Mathf.Clamp(spawnIndex, 0, paths.Count - 1);
+            IReadOnlyList<Vector3> path = paths[spawnIndex];
+            SpawnEnemy(path, roundEnemySpeed, roundEnemyMaxHealth, roundDamageToTower, roundDamageToDefender, true);
+            spawnIndex = (spawnIndex + 1) % paths.Count;
+        }
+
+        CheckRoundComplete();
+    }
+
+    private void SpawnContinuousEnemies()
     {
         if (paths.Count == 0)
         {
@@ -123,18 +209,14 @@ public class EnemySpawner : MonoBehaviour
         {
             spawnIndex = Mathf.Clamp(spawnIndex, 0, paths.Count - 1);
             IReadOnlyList<Vector3> path = paths[spawnIndex];
-            Enemy enemy = CreateEnemy();
-            enemy.Initialize(path, tower, enemySpeed, enemyMaxHealth, damageToTower, enemyHeightOffset,
-                defenderAttackRange, defenderAttackInterval, damageToDefender, towerAttackRange, towerAttackInterval);
+            SpawnEnemy(path, enemySpeed, enemyMaxHealth, damageToTower, damageToDefender, false);
             spawnIndex = (spawnIndex + 1) % paths.Count;
         }
         else
         {
             foreach (var path in paths)
             {
-                Enemy enemy = CreateEnemy();
-                enemy.Initialize(path, tower, enemySpeed, enemyMaxHealth, damageToTower, enemyHeightOffset,
-                    defenderAttackRange, defenderAttackInterval, damageToDefender, towerAttackRange, towerAttackInterval);
+                SpawnEnemy(path, enemySpeed, enemyMaxHealth, damageToTower, damageToDefender, false);
             }
         }
     }
@@ -151,6 +233,45 @@ public class EnemySpawner : MonoBehaviour
         }
 
         return enemyObject.AddComponent<Enemy>();
+    }
+
+    private void SpawnEnemy(IReadOnlyList<Vector3> path, float speed, float health, float towerDamage, float defenderDamage, bool trackRound)
+    {
+        Enemy enemy = CreateEnemy();
+        if (trackRound)
+        {
+            enemy.Died += HandleEnemyDied;
+            enemiesAlive += 1;
+            enemiesSpawned += 1;
+        }
+
+        enemy.Initialize(path, tower, speed, health, towerDamage, enemyHeightOffset,
+            defenderAttackRange, defenderAttackInterval, defenderDamage, towerAttackRange, towerAttackInterval);
+    }
+
+    private void HandleEnemyDied(Enemy enemy)
+    {
+        if (enemy != null)
+        {
+            enemy.Died -= HandleEnemyDied;
+        }
+
+        enemiesAlive = Mathf.Max(0, enemiesAlive - 1);
+        CheckRoundComplete();
+    }
+
+    private void CheckRoundComplete()
+    {
+        if (!roundActive)
+        {
+            return;
+        }
+
+        if (enemiesSpawned >= enemiesToSpawn && enemiesAlive <= 0)
+        {
+            roundActive = false;
+            RoundCompleted?.Invoke(this);
+        }
     }
 
     private void CreateSpawnMarker(Vector3 position)

@@ -6,22 +6,28 @@ public class TowerHud : MonoBehaviour
     [Header("References")]
     public TowerHealth tower;
     public Text towerHealthText;
+    public Text moneyText;
+    public Text roundText;
     public Text gameOverText;
 
     [Header("Layout")]
     public Vector2 referenceResolution = new Vector2(1920f, 1080f);
     public Vector2 healthPadding = new Vector2(24f, 24f);
+    public Vector2 moneyPadding = new Vector2(24f, 70f);
+    public Vector2 roundPadding = new Vector2(24f, 24f);
     public int healthFontSize = 32;
+    public int moneyFontSize = 28;
+    public int roundFontSize = 28;
     public int gameOverFontSize = 72;
 
     private void Awake()
     {
         if (tower == null)
         {
-            tower = FindObjectOfType<TowerHealth>();
+            tower = FindFirstObjectByType<TowerHealth>();
         }
 
-        if (towerHealthText == null || gameOverText == null)
+        if (towerHealthText == null || moneyText == null || roundText == null || gameOverText == null)
         {
             BuildUi();
         }
@@ -34,6 +40,16 @@ public class TowerHud : MonoBehaviour
             towerHealthText.text = "Tower HP: " + Mathf.CeilToInt(tower.CurrentHealth);
         }
 
+        if (moneyText != null && GameManager.Instance != null)
+        {
+            moneyText.text = "Money: $" + GameManager.Instance.CurrentMoney;
+        }
+
+        if (roundText != null && GameManager.Instance != null)
+        {
+            roundText.text = "Round " + GameManager.Instance.CurrentRound;
+        }
+
         if (gameOverText != null)
         {
             gameOverText.gameObject.SetActive(GameManager.IsGameOver);
@@ -42,7 +58,7 @@ public class TowerHud : MonoBehaviour
 
     private void BuildUi()
     {
-        Canvas canvas = FindObjectOfType<Canvas>();
+        Canvas canvas = FindFirstObjectByType<Canvas>();
         if (canvas == null)
         {
             GameObject canvasObject = new GameObject("HUDCanvas");
@@ -69,6 +85,36 @@ public class TowerHud : MonoBehaviour
             rect.pivot = new Vector2(0f, 1f);
             rect.anchoredPosition = new Vector2(healthPadding.x, -healthPadding.y);
             rect.sizeDelta = new Vector2(400f, 80f);
+        }
+
+        if (moneyText == null)
+        {
+            moneyText = CreateText(canvas.transform, "MoneyText");
+            moneyText.fontSize = moneyFontSize;
+            moneyText.alignment = TextAnchor.UpperLeft;
+            moneyText.color = Color.white;
+
+            RectTransform rect = moneyText.rectTransform;
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(0f, 1f);
+            rect.anchoredPosition = new Vector2(moneyPadding.x, -moneyPadding.y);
+            rect.sizeDelta = new Vector2(400f, 80f);
+        }
+
+        if (roundText == null)
+        {
+            roundText = CreateText(canvas.transform, "RoundText");
+            roundText.fontSize = roundFontSize;
+            roundText.alignment = TextAnchor.UpperRight;
+            roundText.color = Color.white;
+
+            RectTransform rect = roundText.rectTransform;
+            rect.anchorMin = new Vector2(1f, 1f);
+            rect.anchorMax = new Vector2(1f, 1f);
+            rect.pivot = new Vector2(1f, 1f);
+            rect.anchoredPosition = new Vector2(-roundPadding.x, -roundPadding.y);
+            rect.sizeDelta = new Vector2(300f, 80f);
         }
 
         if (gameOverText == null)
