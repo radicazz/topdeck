@@ -29,6 +29,11 @@ public class DefenderPlacementSpot : MonoBehaviour
 
     private void OnMouseDown()
     {
+        TryPlace();
+    }
+
+    public void TryPlace()
+    {
         if (occupied || manager == null || GameManager.IsGameOver)
         {
             return;

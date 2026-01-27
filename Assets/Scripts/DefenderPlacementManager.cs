@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 public class DefenderPlacementManager : MonoBehaviour
 {
@@ -24,9 +27,11 @@ public class DefenderPlacementManager : MonoBehaviour
     public Color defenderColor = new Color(0.2f, 0.8f, 0.2f);
 
     private readonly List<DefenderPlacementSpot> spots = new List<DefenderPlacementSpot>();
+    private Camera mainCamera;
 
     private void Start()
     {
+        mainCamera = Camera.main;
         if (terrain == null)
         {
             terrain = FindObjectOfType<ProceduralTerrainGenerator>();
@@ -40,6 +45,40 @@ public class DefenderPlacementManager : MonoBehaviour
         }
 
         BuildPlacementSpots();
+    }
+
+    private void Update()
+    {
+        if (GameManager.IsGameOver)
+        {
+            return;
+        }
+
+        if (!IsPrimaryClickDown())
+        {
+            return;
+        }
+
+        if (!TryGetPointerPosition(out Vector2 screenPosition))
+        {
+            return;
+        }
+
+        Camera cameraToUse = mainCamera != null ? mainCamera : Camera.main;
+        if (cameraToUse == null)
+        {
+            return;
+        }
+
+        Ray ray = cameraToUse.ScreenPointToRay(screenPosition);
+        if (Physics.Raycast(ray, out RaycastHit hit))
+        {
+            DefenderPlacementSpot spot = hit.collider.GetComponent<DefenderPlacementSpot>();
+            if (spot != null)
+            {
+                spot.TryPlace();
+            }
+        }
     }
 
     private void BuildPlacementSpots()
@@ -151,5 +190,35 @@ public class DefenderPlacementManager : MonoBehaviour
         attack.damagePerShot = defenderDamage;
 
         return health;
+    }
+
+    private bool IsPrimaryClickDown()
+    {
+#if ENABLE_INPUT_SYSTEM
+        if (Mouse.current != null)
+        {
+            return Mouse.current.leftButton.wasPressedThisFrame;
+        }
+#endif
+        return Input.GetMouseButtonDown(0);
+    }
+
+    private bool TryGetPointerPosition(out Vector2 position)
+    {
+#if ENABLE_INPUT_SYSTEM
+        if (Mouse.current != null)
+        {
+            position = Mouse.current.position.ReadValue();
+            return true;
+        }
+#endif
+        if (Input.mousePresent)
+        {
+            position = Input.mousePosition;
+            return true;
+        }
+
+        position = default;
+        return false;
     }
 }
