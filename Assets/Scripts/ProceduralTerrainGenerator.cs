@@ -31,6 +31,9 @@ public class ProceduralTerrainGenerator : MonoBehaviour
     public IReadOnlyList<List<Vector3>> PathsWorld => pathsWorld;
     public Vector3 CenterWorld => transform.position;
     public int LastSeedUsed => lastSeedUsed;
+    public int Width => width;
+    public int Height => height;
+    public float CellSize => cellSize;
 
     private readonly List<List<Vector3>> pathsWorld = new List<List<Vector3>>();
     private MeshFilter meshFilter;
@@ -38,6 +41,8 @@ public class ProceduralTerrainGenerator : MonoBehaviour
     private MeshCollider meshCollider;
     private GameObject pathOverlay;
     private int lastSeedUsed;
+    private bool[,] pathMap;
+    private float[,] lastCellHeights;
 
     private enum TileType
     {
@@ -94,10 +99,37 @@ public class ProceduralTerrainGenerator : MonoBehaviour
             tiles = CreateFallbackTiles(out pathCells);
         }
 
+        pathMap = BuildPathMap(pathCells);
         float[,] cellHeights = BuildCellHeights(tiles);
+        lastCellHeights = cellHeights;
         BuildGroundMesh(cellHeights);
         BuildPathOverlay(pathCells, cellHeights);
         CachePathsWorld(pathCells, cellHeights);
+    }
+
+    public bool IsPathCell(int x, int y)
+    {
+        if (pathMap == null || x < 0 || x >= width || y < 0 || y >= height)
+        {
+            return false;
+        }
+        return pathMap[x, y];
+    }
+
+    public bool TryGetCellWorldPosition(int x, int y, out Vector3 worldPosition)
+    {
+        worldPosition = transform.position;
+        if (x < 0 || x >= width || y < 0 || y >= height)
+        {
+            return false;
+        }
+
+        float heightValue = lastCellHeights != null ? lastCellHeights[x, y] : grassHeight;
+        int centerX = width / 2;
+        int centerY = height / 2;
+        Vector3 local = new Vector3((x - centerX) * cellSize, heightValue, (y - centerY) * cellSize);
+        worldPosition = transform.TransformPoint(local);
+        return true;
     }
 
     private void EnsureMaterials()
@@ -129,6 +161,29 @@ public class ProceduralTerrainGenerator : MonoBehaviour
         if (width % 2 == 0) width += 1;
         if (height % 2 == 0) height += 1;
         if (pathCount < 3) pathCount = 3;
+    }
+
+    private bool[,] BuildPathMap(List<List<Vector2Int>> pathCells)
+    {
+        var map = new bool[width, height];
+        if (pathCells == null)
+        {
+            return map;
+        }
+
+        foreach (var path in pathCells)
+        {
+            foreach (var cell in path)
+            {
+                if (cell.x < 0 || cell.x >= width || cell.y < 0 || cell.y >= height)
+                {
+                    continue;
+                }
+                map[cell.x, cell.y] = true;
+            }
+        }
+
+        return map;
     }
 
     private Shader GetDefaultShader()
