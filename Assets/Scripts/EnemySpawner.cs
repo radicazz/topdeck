@@ -257,7 +257,10 @@ public class EnemySpawner : MonoBehaviour
     private void SpawnEnemy(IReadOnlyList<Vector3> path, float speed, float health, float towerDamage, float defenderDamage, bool trackRound)
     {
         Enemy enemy = GetEnemy();
-        enemy.gameObject.SetActive(false);
+        if (usePooling)
+        {
+            enemy.gameObject.SetActive(false);
+        }
         enemy.SetReleaseAction(usePooling ? ReleaseEnemy : null);
         if (trackRound)
         {
@@ -268,7 +271,10 @@ public class EnemySpawner : MonoBehaviour
 
         enemy.Initialize(path, tower, speed, health, towerDamage, enemyHeightOffset,
             defenderAttackRange, defenderAttackInterval, defenderDamage, towerAttackRange, towerAttackInterval, defenderTargetMask);
-        enemy.gameObject.SetActive(true);
+        if (usePooling)
+        {
+            enemy.gameObject.SetActive(true);
+        }
     }
 
     private void WarmPool()

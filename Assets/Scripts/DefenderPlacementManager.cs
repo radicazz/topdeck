@@ -267,7 +267,10 @@ public class DefenderPlacementManager : MonoBehaviour
         }
 
         GameObject defenderObject = health.gameObject;
-        defenderObject.SetActive(false);
+        if (usePooling)
+        {
+            defenderObject.SetActive(false);
+        }
         defenderObject.transform.SetParent(defenderContainer, false);
         defenderObject.transform.position = spotPosition + Vector3.up * defenderHeightOffset;
 
@@ -287,7 +290,10 @@ public class DefenderPlacementManager : MonoBehaviour
         DefenderAttack attack = ComponentUtils.GetOrAddComponent<DefenderAttack>(defenderObject);
         attack.Configure(defenderRange, defenderAttackInterval, defenderDamage, enemyTargetMask);
 
-        defenderObject.SetActive(true);
+        if (usePooling)
+        {
+            defenderObject.SetActive(true);
+        }
         return health;
     }
 

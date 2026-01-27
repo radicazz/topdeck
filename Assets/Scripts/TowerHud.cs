@@ -41,11 +41,6 @@ public class TowerHud : MonoBehaviour
         Bind();
     }
 
-    private void Start()
-    {
-        Bind();
-    }
-
     private void OnDisable()
     {
         Unbind();
