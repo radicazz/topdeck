@@ -41,7 +41,7 @@ public class ProjectileManager : MonoBehaviour {
     }
 
     public Projectile FireProjectile(Vector3 origin, Enemy target, float damage) {
-        if (target == null || target.IsDead) {
+        if (target == null || !target.gameObject.activeSelf) {
             return null;
         }
 

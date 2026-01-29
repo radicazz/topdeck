@@ -22,12 +22,15 @@ public class Projectile : MonoBehaviour {
     }
 
     private void Update() {
-        if (GameManager.Instance != null && GameManager.Instance.IsGameOver) {
+        if (GameManager.IsGameOver) {
             return;
         }
 
         // Update target position if enemy is still alive and moving
-        if (targetEnemy != null && !targetEnemy.IsDead) {
+        if (targetEnemy != null && !targetEnemy.gameObject.activeSelf) {
+            targetEnemy = null;
+        }
+        else if (targetEnemy != null) {
             targetPosition = targetEnemy.transform.position;
         }
 
@@ -64,7 +67,7 @@ public class Projectile : MonoBehaviour {
 
     private void OnArrival() {
         // Deal damage if target is still alive
-        if (targetEnemy != null && !targetEnemy.IsDead) {
+        if (targetEnemy != null && targetEnemy.gameObject.activeSelf) {
             targetEnemy.TakeDamage(damage);
         }
 
