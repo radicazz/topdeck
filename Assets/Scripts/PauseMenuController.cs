@@ -36,6 +36,11 @@ public class PauseMenuController : MonoBehaviour
         Bind();
     }
 
+    private void Start()
+    {
+        CacheUi();
+    }
+
     private void OnDisable()
     {
         Unbind();
@@ -50,6 +55,11 @@ public class PauseMenuController : MonoBehaviour
         if (GameManager.IsGameOver)
         {
             return;
+        }
+
+        if (pauseOverlay == null)
+        {
+            CacheUi();
         }
 
         Keyboard keyboard = Keyboard.current;
@@ -149,7 +159,7 @@ public class PauseMenuController : MonoBehaviour
         {
             return;
         }
-        pauseOverlay.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None;
+        pauseOverlay.EnableInClassList("hidden", !isVisible);
     }
 
     private void HandleResumeClicked()
