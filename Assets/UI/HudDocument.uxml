@@ -17,5 +17,15 @@
                 <ui:Label name="menu-subtitle" class="menu-subtitle" text="The tower has fallen." />
             </ui:VisualElement>
         </ui:VisualElement>
+
+        <ui:VisualElement name="pause-overlay" class="menu-overlay hidden">
+            <ui:VisualElement class="menu-panel">
+                <ui:Label name="pause-title" class="menu-title menu-title--pause" text="PAUSED" />
+                <ui:VisualElement class="menu-button-group">
+                    <ui:Button name="resume-button" class="menu-button menu-button--primary" text="Resume" />
+                    <ui:Button name="quit-button" class="menu-button menu-button--secondary" text="Quit" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

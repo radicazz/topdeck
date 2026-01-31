@@ -87,9 +87,60 @@
     -unity-text-outline-color: rgba(0, 0, 0, 0.6);
 }
 
+.menu-title--pause {
+    color: #f5f7fb;
+}
+
 .menu-subtitle {
     font-size: 20px;
     color: #f3f5f8;
+}
+
+.menu-button-group {
+    flex-direction: column;
+    row-gap: 12px;
+    width: 100%;
+    margin-top: 12px;
+}
+
+.menu-button {
+    height: 44px;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.15);
+    background-color: rgba(38, 42, 52, 0.9);
+    color: #f5f7fb;
+    -unity-font-style: bold;
+}
+
+.menu-button--primary {
+    background-color: rgba(88, 165, 255, 0.95);
+    border-color: rgba(88, 165, 255, 1);
+    color: #0d1320;
+}
+
+.menu-button--secondary {
+    background-color: rgba(255, 91, 99, 0.9);
+    border-color: rgba(255, 91, 99, 1);
+    color: #0d1320;
+}
+
+.menu-button:hover {
+    background-color: rgba(88, 165, 255, 1);
+    color: #0d1320;
+}
+
+.menu-button--secondary:hover {
+    background-color: rgba(255, 91, 99, 1);
+    color: #0d1320;
+}
+
+.menu-button:active {
+    background-color: rgba(66, 130, 214, 1);
+}
+
+.menu-button--secondary:active {
+    background-color: rgba(214, 74, 82, 1);
 }
 
 .hidden {
