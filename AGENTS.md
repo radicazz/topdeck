@@ -52,4 +52,6 @@
 - Enemies spawn from path-based locations, move along paths to the tower, attack defenders in range, and damage the tower when close; enemies have health and can be killed.
 - Defender placement uses predetermined, non-path grid cells; clicking a placement spot spawns a defender cube with health and auto-attack.
 - Round-based economy: start at Round 1 with $200; defenders cost $100; kills reward $50; Round 1 spawns 3 enemies and later rounds scale enemy count and stats.
-- HUD (1080p reference scaling) shows tower HP, money, round counter, and GAME OVER; round counter reflects prep/in-progress state.
+- HUD is now UI Toolkit-based (`Assets/UI/HudDocument.uxml` + `Assets/UI/HudDocument.uss`) with panel settings at `Assets/UI/HudPanelSettings.asset` and a `HUDDocument` `UIDocument` in `Assets/Scenes/SceneGame.unity`.
+- HUD shows tower HP, money, round counter, GAME OVER, and a pause overlay; round counter reflects prep/in-progress state.
+- Pause menu uses `PauseMenuController` on `GameManager`, toggled with `Esc` or `P`, and provides Resume + Quit buttons.

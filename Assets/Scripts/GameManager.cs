@@ -78,6 +78,26 @@ public class GameManager : MonoBehaviour
         BeginNextRound();
     }
 
+    private void OnDestroy()
+    {
+        CancelInvoke();
+        if (spawners != null)
+        {
+            foreach (var spawner in spawners)
+            {
+                if (spawner != null)
+                {
+                    spawner.RoundCompleted -= OnSpawnerRoundComplete;
+                }
+            }
+        }
+
+        if (Instance == this)
+        {
+            Instance = null;
+        }
+    }
+
     public void GameOver()
     {
         if (isGameOver)
@@ -182,6 +202,11 @@ public class GameManager : MonoBehaviour
 
     private void OnSpawnerRoundComplete(EnemySpawner spawner)
     {
+        if (!this || !isActiveAndEnabled || isGameOver)
+        {
+            return;
+        }
+
         spawnersCompleted++;
         if (spawnersCompleted < activeSpawners.Count)
         {

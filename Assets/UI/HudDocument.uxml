@@ -1,0 +1,31 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="HudDocument.uss" />
+    <ui:VisualElement name="hud-root" class="hud-root">
+        <ui:VisualElement class="hud-top">
+            <ui:VisualElement class="hud-panel hud-left">
+                <ui:Label name="tower-health" class="hud-label hud-label--primary" text="Tower HP: 0" />
+                <ui:Label name="money" class="hud-label" text="Money: $0" />
+            </ui:VisualElement>
+            <ui:VisualElement class="hud-panel hud-right">
+                <ui:Label name="round" class="hud-label" text="Round 1" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="menu-overlay" class="menu-overlay hidden">
+            <ui:VisualElement class="menu-panel">
+                <ui:Label name="game-over" class="menu-title" text="GAME OVER" />
+                <ui:Label name="menu-subtitle" class="menu-subtitle" text="The tower has fallen." />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="pause-overlay" class="menu-overlay hidden">
+            <ui:VisualElement class="menu-panel">
+                <ui:Label name="pause-title" class="menu-title menu-title--pause" text="PAUSED" />
+                <ui:VisualElement class="menu-button-group">
+                    <ui:Button name="resume-button" class="menu-button menu-button--primary" text="Resume" />
+                    <ui:Button name="quit-button" class="menu-button menu-button--secondary" text="Quit" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

@@ -1,27 +1,28 @@
 using UnityEngine;
-using UnityEngine.UI;
+using UnityEngine.UIElements;
 
 public class TowerHud : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private TowerHealth tower;
-    [SerializeField] private Text towerHealthText;
-    [SerializeField] private Text moneyText;
-    [SerializeField] private Text roundText;
-    [SerializeField] private Text gameOverText;
+    [SerializeField] private UIDocument hudDocument;
+    [SerializeField] private VisualTreeAsset hudLayout;
+    [SerializeField] private PanelSettings panelSettings;
 
-    [Header("Layout")]
-    [SerializeField] private Vector2 referenceResolution = new Vector2(1920f, 1080f);
-    [SerializeField] private Vector2 healthPadding = new Vector2(24f, 24f);
-    [SerializeField] private Vector2 moneyPadding = new Vector2(24f, 70f);
-    [SerializeField] private Vector2 roundPadding = new Vector2(24f, 24f);
-    [SerializeField] private int healthFontSize = 32;
-    [SerializeField] private int moneyFontSize = 28;
-    [SerializeField] private int roundFontSize = 28;
-    [SerializeField] private int gameOverFontSize = 72;
+    [Header("UI Element Names")]
+    [SerializeField] private string towerHealthLabelName = "tower-health";
+    [SerializeField] private string moneyLabelName = "money";
+    [SerializeField] private string roundLabelName = "round";
+    [SerializeField] private string menuOverlayName = "menu-overlay";
+    [SerializeField] private string gameOverLabelName = "game-over";
 
     private GameManager boundGameManager;
     private TowerHealth boundTower;
+    private Label towerHealthLabel;
+    private Label moneyLabel;
+    private Label roundLabel;
+    private VisualElement menuOverlay;
+    private Label gameOverLabel;
 
     private void Awake()
     {
@@ -29,15 +30,13 @@ public class TowerHud : MonoBehaviour
         {
             tower = FindFirstObjectByType<TowerHealth>();
         }
-
-        if (towerHealthText == null || moneyText == null || roundText == null || gameOverText == null)
-        {
-            BuildUi();
-        }
+        EnsureDocument();
     }
 
     private void OnEnable()
     {
+        EnsureDocument();
+        CacheUi();
         Bind();
     }
 
@@ -112,132 +111,99 @@ public class TowerHud : MonoBehaviour
             HandleRoundChanged(boundGameManager.CurrentRound, boundGameManager.RoundInProgress);
         }
 
-        if (gameOverText != null)
-        {
-            gameOverText.gameObject.SetActive(GameManager.IsGameOver);
-        }
+        SetMenuVisible(GameManager.IsGameOver);
     }
 
     private void HandleTowerHealthChanged(float health)
     {
-        if (towerHealthText != null)
+        if (towerHealthLabel == null)
         {
-            towerHealthText.text = "Tower HP: " + Mathf.CeilToInt(health);
+            return;
         }
+        towerHealthLabel.text = "Tower HP: " + Mathf.CeilToInt(health);
     }
 
     private void HandleMoneyChanged(int money)
     {
-        if (moneyText != null)
+        if (moneyLabel == null)
         {
-            moneyText.text = "Money: $" + money;
+            return;
         }
+        moneyLabel.text = "Money: $" + money;
     }
 
     private void HandleRoundChanged(int round, bool inProgress)
     {
-        if (roundText != null)
+        if (roundLabel == null)
         {
-            string stateLabel = inProgress ? "" : " (prep)";
-            roundText.text = "Round " + round + stateLabel;
+            return;
         }
+        string stateLabel = inProgress ? "" : " (prep)";
+        roundLabel.text = "Round " + round + stateLabel;
     }
 
     private void HandleGameOverTriggered()
     {
-        if (gameOverText != null)
+        SetMenuVisible(true);
+    }
+
+    private void EnsureDocument()
+    {
+        if (hudDocument == null)
         {
-            gameOverText.gameObject.SetActive(true);
+            hudDocument = FindFirstObjectByType<UIDocument>();
+        }
+
+        if (hudDocument == null)
+        {
+            GameObject documentObject = new GameObject("HUDDocument");
+            hudDocument = documentObject.AddComponent<UIDocument>();
+        }
+
+        if (panelSettings != null && hudDocument.panelSettings == null)
+        {
+            hudDocument.panelSettings = panelSettings;
+        }
+
+        if (hudLayout != null && hudDocument.visualTreeAsset == null)
+        {
+            hudDocument.visualTreeAsset = hudLayout;
         }
     }
 
-    private void BuildUi()
+    private void CacheUi()
     {
-        Canvas canvas = FindFirstObjectByType<Canvas>();
-        if (canvas == null)
+        if (hudDocument == null)
         {
-            GameObject canvasObject = new GameObject("HUDCanvas");
-            canvas = canvasObject.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = referenceResolution;
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 0.5f;
-            canvasObject.AddComponent<GraphicRaycaster>();
+            return;
         }
 
-        if (towerHealthText == null)
+        VisualElement root = hudDocument.rootVisualElement;
+        if (root == null)
         {
-            towerHealthText = CreateText(canvas.transform, "TowerHealthText");
-            towerHealthText.fontSize = healthFontSize;
-            towerHealthText.alignment = TextAnchor.UpperLeft;
-            towerHealthText.color = Color.white;
-
-            RectTransform rect = towerHealthText.rectTransform;
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(0f, 1f);
-            rect.pivot = new Vector2(0f, 1f);
-            rect.anchoredPosition = new Vector2(healthPadding.x, -healthPadding.y);
-            rect.sizeDelta = new Vector2(400f, 80f);
+            return;
         }
 
-        if (moneyText == null)
-        {
-            moneyText = CreateText(canvas.transform, "MoneyText");
-            moneyText.fontSize = moneyFontSize;
-            moneyText.alignment = TextAnchor.UpperLeft;
-            moneyText.color = Color.white;
+        towerHealthLabel = root.Q<Label>(towerHealthLabelName);
+        moneyLabel = root.Q<Label>(moneyLabelName);
+        roundLabel = root.Q<Label>(roundLabelName);
+        menuOverlay = root.Q<VisualElement>(menuOverlayName);
+        gameOverLabel = root.Q<Label>(gameOverLabelName);
 
-            RectTransform rect = moneyText.rectTransform;
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(0f, 1f);
-            rect.pivot = new Vector2(0f, 1f);
-            rect.anchoredPosition = new Vector2(moneyPadding.x, -moneyPadding.y);
-            rect.sizeDelta = new Vector2(400f, 80f);
+        if (gameOverLabel != null && string.IsNullOrEmpty(gameOverLabel.text))
+        {
+            gameOverLabel.text = "GAME OVER";
         }
 
-        if (roundText == null)
-        {
-            roundText = CreateText(canvas.transform, "RoundText");
-            roundText.fontSize = roundFontSize;
-            roundText.alignment = TextAnchor.UpperRight;
-            roundText.color = Color.white;
-
-            RectTransform rect = roundText.rectTransform;
-            rect.anchorMin = new Vector2(1f, 1f);
-            rect.anchorMax = new Vector2(1f, 1f);
-            rect.pivot = new Vector2(1f, 1f);
-            rect.anchoredPosition = new Vector2(-roundPadding.x, -roundPadding.y);
-            rect.sizeDelta = new Vector2(300f, 80f);
-        }
-
-        if (gameOverText == null)
-        {
-            gameOverText = CreateText(canvas.transform, "GameOverText");
-            gameOverText.fontSize = gameOverFontSize;
-            gameOverText.alignment = TextAnchor.MiddleCenter;
-            gameOverText.color = new Color(1f, 0.2f, 0.2f);
-            gameOverText.text = "GAME OVER";
-
-            RectTransform rect = gameOverText.rectTransform;
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = Vector2.zero;
-            rect.sizeDelta = new Vector2(800f, 200f);
-
-            gameOverText.gameObject.SetActive(false);
-        }
+        SetMenuVisible(GameManager.IsGameOver);
     }
 
-    private Text CreateText(Transform parent, string objectName)
+    private void SetMenuVisible(bool isVisible)
     {
-        GameObject textObject = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
-        textObject.transform.SetParent(parent, false);
-        Text text = textObject.GetComponent<Text>();
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        text.text = "";
-        return text;
+        if (menuOverlay == null)
+        {
+            return;
+        }
+        menuOverlay.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None;
     }
 }
