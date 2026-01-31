@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 public class PauseMenuController : MonoBehaviour
@@ -12,8 +13,8 @@ public class PauseMenuController : MonoBehaviour
     [SerializeField] private string quitButtonName = "quit-button";
 
     [Header("Input")]
-    [SerializeField] private KeyCode toggleKey = KeyCode.Escape;
-    [SerializeField] private KeyCode alternateToggleKey = KeyCode.P;
+    [SerializeField] private Key toggleKey = Key.Escape;
+    [SerializeField] private Key alternateToggleKey = Key.P;
 
     private VisualElement pauseOverlay;
     private Button resumeButton;
@@ -51,7 +52,13 @@ public class PauseMenuController : MonoBehaviour
             return;
         }
 
-        if (Input.GetKeyDown(toggleKey) || Input.GetKeyDown(alternateToggleKey))
+        Keyboard keyboard = Keyboard.current;
+        if (keyboard == null)
+        {
+            return;
+        }
+
+        if (keyboard[toggleKey].wasPressedThisFrame || keyboard[alternateToggleKey].wasPressedThisFrame)
         {
             TogglePause();
         }
