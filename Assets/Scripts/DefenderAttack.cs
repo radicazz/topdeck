@@ -27,6 +27,7 @@ public class DefenderAttack : MonoBehaviour
     private Enemy currentTarget;
     private Vector3 anchorPosition;
     private bool anchorSet;
+    private ProceduralTerrainGenerator terrain;
 
     private void Awake()
     {
@@ -43,13 +44,14 @@ public class DefenderAttack : MonoBehaviour
         currentTarget = null;
     }
 
-    public void ConfigureMovement(Vector3 anchor, float radius, float speed, float rotationSpeed)
+    public void ConfigureMovement(Vector3 anchor, float radius, float speed, float rotationSpeed, ProceduralTerrainGenerator terrainRef)
     {
         anchorPosition = anchor;
         anchorSet = true;
         moveRadius = Mathf.Max(0f, radius);
         moveSpeed = Mathf.Max(0f, speed);
         turnSpeed = Mathf.Max(0f, rotationSpeed);
+        terrain = terrainRef;
     }
 
     private void Update()
@@ -126,6 +128,11 @@ public class DefenderAttack : MonoBehaviour
             }
         }
 
+        if (allowMovement && terrain != null && moveRadius > 0f && terrain.IsWorldPositionOnPath(desiredPosition))
+        {
+            desiredPosition = FindValidPositionAroundAnchor(desiredPosition - anchorPosition);
+        }
+
         if (allowMovement && moveSpeed > 0f)
         {
             desiredPosition.y = anchorPosition.y;
@@ -133,7 +140,10 @@ public class DefenderAttack : MonoBehaviour
             {
                 Vector3 next = Vector3.MoveTowards(transform.position, desiredPosition, moveSpeed * Time.deltaTime);
                 next.y = anchorPosition.y;
-                transform.position = next;
+                if (terrain == null || !terrain.IsWorldPositionOnPath(next))
+                {
+                    transform.position = next;
+                }
             }
         }
 
@@ -170,6 +180,38 @@ public class DefenderAttack : MonoBehaviour
     private Enemy FindTarget()
     {
         return TargetingUtils.FindClosestTarget<Enemy>(transform.position, range, targetMask, hitBuffer);
+    }
+
+    private Vector3 FindValidPositionAroundAnchor(Vector3 preferredDirection)
+    {
+        if (terrain == null || moveRadius <= 0f)
+        {
+            return anchorPosition;
+        }
+
+        Vector3 direction = preferredDirection;
+        direction.y = 0f;
+        if (direction.sqrMagnitude < 0.0001f)
+        {
+            direction = transform.forward;
+            direction.y = 0f;
+        }
+
+        float baseAngle = Mathf.Atan2(direction.z, direction.x);
+        const int samples = 12;
+        const float twoPi = Mathf.PI * 2f;
+
+        for (int i = 0; i < samples; i++)
+        {
+            float angle = baseAngle + twoPi * (i / (float)samples);
+            Vector3 candidate = anchorPosition + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * moveRadius;
+            if (!terrain.IsWorldPositionOnPath(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return anchorPosition;
     }
 
     private void OnDrawGizmosSelected()

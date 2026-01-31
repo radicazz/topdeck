@@ -16,6 +16,7 @@ public class DefenderPlacementManager : MonoBehaviour
     [SerializeField] private float spotHeightOffset = 0.1f;
     [SerializeField] private Color spotAvailableColor = new Color(0.2f, 0.5f, 1f);
     [SerializeField] private Color spotOccupiedColor = new Color(0.35f, 0.35f, 0.35f);
+    [SerializeField, Range(0.2f, 1f)] private float placementRadiusFactor = 0.55f;
 
     [Header("Defender")]
     [SerializeField] private GameObject defenderPrefab;
@@ -30,7 +31,7 @@ public class DefenderPlacementManager : MonoBehaviour
     [SerializeField] private LayerMask enemyTargetMask = ~0;
 
     [Header("Defender Movement")]
-    [SerializeField] private float defenderMoveRadius = 0.6f;
+    [SerializeField] private float defenderMoveRadius = 0.8f;
     [SerializeField] private float defenderMoveSpeed = 1.5f;
     [SerializeField] private float defenderTurnSpeed = 10f;
 
@@ -112,9 +113,14 @@ public class DefenderPlacementManager : MonoBehaviour
         ClearSpots();
 
         List<Vector2Int> candidates = new List<Vector2Int>();
+        List<Vector2Int> preferred = new List<Vector2Int>();
+        List<Vector2Int> fallback = new List<Vector2Int>();
         int width = terrain.Width;
         int height = terrain.Height;
         Vector2Int center = new Vector2Int(width / 2, height / 2);
+        float halfMin = Mathf.Min(width, height) * 0.5f;
+        float maxRadius = Mathf.Max(1f, halfMin * Mathf.Clamp(placementRadiusFactor, 0.2f, 1f));
+        float maxRadiusSqr = maxRadius * maxRadius;
 
         for (int x = 0; x < width; x++)
         {
@@ -130,7 +136,19 @@ public class DefenderPlacementManager : MonoBehaviour
                     continue;
                 }
 
-                candidates.Add(new Vector2Int(x, y));
+                Vector2Int cell = new Vector2Int(x, y);
+                candidates.Add(cell);
+
+                Vector2Int delta = cell - center;
+                float sqrDistance = delta.x * delta.x + delta.y * delta.y;
+                if (sqrDistance <= maxRadiusSqr)
+                {
+                    preferred.Add(cell);
+                }
+                else
+                {
+                    fallback.Add(cell);
+                }
             }
         }
 
@@ -141,18 +159,38 @@ public class DefenderPlacementManager : MonoBehaviour
         }
 
         var random = new System.Random(terrain.LastSeedUsed + 1337);
-        for (int i = candidates.Count - 1; i > 0; i--)
+        for (int i = preferred.Count - 1; i > 0; i--)
         {
             int j = random.Next(i + 1);
-            Vector2Int temp = candidates[i];
-            candidates[i] = candidates[j];
-            candidates[j] = temp;
+            Vector2Int temp = preferred[i];
+            preferred[i] = preferred[j];
+            preferred[j] = temp;
         }
 
-        int count = Mathf.Min(placementCount, candidates.Count);
+        if (preferred.Count < placementCount)
+        {
+            fallback.Sort((a, b) =>
+            {
+                int dxA = a.x - center.x;
+                int dyA = a.y - center.y;
+                int dxB = b.x - center.x;
+                int dyB = b.y - center.y;
+                float distA = dxA * dxA + dyA * dyA;
+                float distB = dxB * dxB + dyB * dyB;
+                return distA.CompareTo(distB);
+            });
+
+            int needed = Mathf.Min(placementCount - preferred.Count, fallback.Count);
+            for (int i = 0; i < needed; i++)
+            {
+                preferred.Add(fallback[i]);
+            }
+        }
+
+        int count = Mathf.Min(placementCount, preferred.Count);
         for (int i = 0; i < count; i++)
         {
-            Vector2Int cell = candidates[i];
+            Vector2Int cell = preferred[i];
             if (!terrain.TryGetCellWorldPosition(cell.x, cell.y, out Vector3 worldPosition))
             {
                 continue;
@@ -295,7 +333,7 @@ public class DefenderPlacementManager : MonoBehaviour
 
         DefenderAttack attack = ComponentUtils.GetOrAddComponent<DefenderAttack>(defenderObject);
         attack.Configure(defenderRange, defenderAttackInterval, defenderDamage, enemyTargetMask);
-        attack.ConfigureMovement(spawnPosition, defenderMoveRadius, defenderMoveSpeed, defenderTurnSpeed);
+        attack.ConfigureMovement(spawnPosition, defenderMoveRadius, defenderMoveSpeed, defenderTurnSpeed, terrain);
 
         if (usePooling)
         {

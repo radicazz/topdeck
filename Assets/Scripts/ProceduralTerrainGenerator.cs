@@ -133,6 +133,40 @@ public class ProceduralTerrainGenerator : MonoBehaviour
         return true;
     }
 
+    public bool TryGetCellIndices(Vector3 worldPosition, out int x, out int y)
+    {
+        x = 0;
+        y = 0;
+        if (cellSize <= 0f)
+        {
+            return false;
+        }
+
+        Vector3 local = transform.InverseTransformPoint(worldPosition);
+        int centerX = width / 2;
+        int centerY = height / 2;
+        float rawX = local.x / cellSize + centerX;
+        float rawY = local.z / cellSize + centerY;
+        x = Mathf.RoundToInt(rawX);
+        y = Mathf.RoundToInt(rawY);
+        if (x < 0 || x >= width || y < 0 || y >= height)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    public bool IsWorldPositionOnPath(Vector3 worldPosition)
+    {
+        if (!TryGetCellIndices(worldPosition, out int x, out int y))
+        {
+            return false;
+        }
+
+        return IsPathCell(x, y);
+    }
+
     private void EnsureMaterials()
     {
         Shader shader = GetDefaultShader();
