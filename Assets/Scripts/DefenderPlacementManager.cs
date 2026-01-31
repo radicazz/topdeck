@@ -29,6 +29,11 @@ public class DefenderPlacementManager : MonoBehaviour
     [SerializeField] private bool applyOverridesToPrefab = true;
     [SerializeField] private LayerMask enemyTargetMask = ~0;
 
+    [Header("Defender Movement")]
+    [SerializeField] private float defenderMoveRadius = 0.6f;
+    [SerializeField] private float defenderMoveSpeed = 1.5f;
+    [SerializeField] private float defenderTurnSpeed = 10f;
+
     [Header("Pooling")]
     [SerializeField] private bool usePooling = true;
     [SerializeField, Min(0)] private int defenderPoolSize = 0;
@@ -272,7 +277,8 @@ public class DefenderPlacementManager : MonoBehaviour
             defenderObject.SetActive(false);
         }
         defenderObject.transform.SetParent(defenderContainer, false);
-        defenderObject.transform.position = spotPosition + Vector3.up * defenderHeightOffset;
+        Vector3 spawnPosition = spotPosition + Vector3.up * defenderHeightOffset;
+        defenderObject.transform.position = spawnPosition;
 
         if (defenderPrefab == null || applyOverridesToPrefab)
         {
@@ -289,6 +295,7 @@ public class DefenderPlacementManager : MonoBehaviour
 
         DefenderAttack attack = ComponentUtils.GetOrAddComponent<DefenderAttack>(defenderObject);
         attack.Configure(defenderRange, defenderAttackInterval, defenderDamage, enemyTargetMask);
+        attack.ConfigureMovement(spawnPosition, defenderMoveRadius, defenderMoveSpeed, defenderTurnSpeed);
 
         if (usePooling)
         {
