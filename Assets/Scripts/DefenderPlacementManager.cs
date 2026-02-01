@@ -165,6 +165,33 @@ public class DefenderPlacementManager : MonoBehaviour
             defenderTypes.Add(basic);
             defenderTypes.Add(advanced);
         }
+        else
+        {
+            DefenderDefinition basic = FindDefinition("basic") ?? defenderTypes[0];
+            if (basic != null && basic.Prefab == null && defenderPrefab != null)
+            {
+                basic.Prefab = defenderPrefab;
+            }
+
+            DefenderDefinition advanced = FindDefinition("advanced");
+            if (advanced == null && defenderTypes.Count > 1)
+            {
+                advanced = defenderTypes[1];
+            }
+
+            if (advanced != null)
+            {
+                if (advanced.Prefab == null || (advancedDefenderPrefab != null && advanced.Prefab == defenderPrefab))
+                {
+                    if (advancedDefenderPrefab != null)
+                    {
+                        advanced.Prefab = advancedDefenderPrefab;
+                    }
+                }
+
+                EnsureAdvancedDiffers(basic, advanced);
+            }
+        }
 
         defaultDefenderIndex = Mathf.Clamp(defaultDefenderIndex, 0, defenderTypes.Count - 1);
 
@@ -172,6 +199,57 @@ public class DefenderPlacementManager : MonoBehaviour
         {
             SelectDefender(GetDefaultDefender());
         }
+    }
+
+    private DefenderDefinition FindDefinition(string id)
+    {
+        if (defenderTypes == null || string.IsNullOrEmpty(id))
+        {
+            return null;
+        }
+
+        for (int i = 0; i < defenderTypes.Count; i++)
+        {
+            DefenderDefinition definition = defenderTypes[i];
+            if (definition == null)
+            {
+                continue;
+            }
+
+            if (string.Equals(definition.Id, id, StringComparison.OrdinalIgnoreCase))
+            {
+                return definition;
+            }
+        }
+
+        return null;
+    }
+
+    private void EnsureAdvancedDiffers(DefenderDefinition basic, DefenderDefinition advanced)
+    {
+        if (basic == null || advanced == null)
+        {
+            return;
+        }
+
+        bool sameStats =
+            Mathf.Approximately(advanced.MaxHealth, basic.MaxHealth) &&
+            Mathf.Approximately(advanced.Range, basic.Range) &&
+            Mathf.Approximately(advanced.AttackInterval, basic.AttackInterval) &&
+            Mathf.Approximately(advanced.Damage, basic.Damage);
+
+        if (!sameStats)
+        {
+            return;
+        }
+
+        advanced.MaxHealth = Mathf.Max(0.1f, basic.MaxHealth * advancedHealthMultiplier);
+        advanced.Range = Mathf.Max(0.1f, basic.Range * advancedRangeMultiplier);
+        advanced.AttackInterval = Mathf.Max(0.05f, basic.AttackInterval * advancedAttackIntervalMultiplier);
+        advanced.Damage = Mathf.Max(0f, basic.Damage * advancedDamageMultiplier);
+        advanced.MoveRadius = Mathf.Max(0f, basic.MoveRadius * advancedMoveRadiusMultiplier);
+        advanced.MoveSpeed = Mathf.Max(0f, basic.MoveSpeed * advancedMoveSpeedMultiplier);
+        advanced.TurnSpeed = Mathf.Max(0f, basic.TurnSpeed * advancedTurnSpeedMultiplier);
     }
 
     private DefenderDefinition GetDefaultDefender()

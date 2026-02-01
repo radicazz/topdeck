@@ -859,6 +859,8 @@ MonoBehaviour:
   healthMultiplierPerRound: 0.15
   speedMultiplierPerRound: 0.05
   damageMultiplierPerRound: 0.1
+  startOnAwake: 0
+  hasStarted: 0
   isGameOver: 0
   currentRound: 0
   currentMoney: 0
@@ -899,6 +901,12 @@ MonoBehaviour:
   roundLabelName: round
   menuOverlayName: menu-overlay
   gameOverLabelName: game-over
+  restartButtonName: restart-button
+  exitButtonName: exit-button
+  startOverlayName: start-overlay
+  startButtonName: start-button
+  startExitButtonName: start-exit-button
+  defenderOptionsName: defender-options
 --- !u!114 &1287295582
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -915,8 +923,8 @@ MonoBehaviour:
   pauseOverlayName: pause-overlay
   resumeButtonName: resume-button
   quitButtonName: quit-button
-  toggleKey: 27
-  alternateToggleKey: 112
+  toggleKey: 60
+  alternateToggleKey: 30
 --- !u!1 &1310329111
 GameObject:
   m_ObjectHideFlags: 0
@@ -1086,6 +1094,39 @@ MonoBehaviour:
   spotAvailableColor: {r: 0.2, g: 0.5, b: 1, a: 1}
   spotOccupiedColor: {r: 0.35, g: 0.35, b: 0.35, a: 1}
   placementRadiusFactor: 0.55
+  defenderTypes:
+  - id: basic
+    displayName: Basic Ally
+    cost: 100
+    prefab: {fileID: 1014717639346074084, guid: 8f627f90f40024c43b8d66bb930b0e61, type: 3}
+    applyOverridesToPrefab: 1
+    scale: {x: 0.8, y: 0.8, z: 0.8}
+    color: {r: 0.2, g: 0.8, b: 0.2, a: 1}
+    heightOffset: 0.5
+    maxHealth: 8
+    range: 4.5
+    attackInterval: 0.7
+    damage: 1.2
+    moveRadius: 0.8
+    moveSpeed: 1.5
+    turnSpeed: 10
+  - id: advanced
+    displayName: Advanced Ally
+    cost: 160
+    prefab: {fileID: 1014717639346074084, guid: 8f627f90f40024c43b8d66bb930b0e61, type: 3}
+    applyOverridesToPrefab: 1
+    scale: {x: 0.9, y: 0.9, z: 0.9}
+    color: {r: 0.95, g: 0.85, b: 0.25, a: 1}
+    heightOffset: 0.5
+    maxHealth: 11.2
+    range: 5.1749997
+    attackInterval: 0.56
+    damage: 1.9200001
+    moveRadius: 0.88000005
+    moveSpeed: 1.7249999
+    turnSpeed: 11
+  defaultDefenderIndex: 0
+  defenderCost: 100
   defenderPrefab: {fileID: 1014717639346074084, guid: 8f627f90f40024c43b8d66bb930b0e61, type: 3}
   defenderMaxHealth: 8
   defenderRange: 4.5
@@ -1101,6 +1142,19 @@ MonoBehaviour:
   defenderMoveRadius: 0.8
   defenderMoveSpeed: 1.5
   defenderTurnSpeed: 10
+  advancedDefenderName: Advanced Ally
+  advancedDefenderCost: 160
+  advancedHealthMultiplier: 1.4
+  advancedRangeMultiplier: 1.15
+  advancedAttackIntervalMultiplier: 0.8
+  advancedDamageMultiplier: 1.6
+  advancedMoveRadiusMultiplier: 1.1
+  advancedMoveSpeedMultiplier: 1.15
+  advancedTurnSpeedMultiplier: 1.1
+  advancedScale: {x: 0.9, y: 0.9, z: 0.9}
+  advancedColor: {r: 0.95, g: 0.85, b: 0.25, a: 1}
+  advancedDefenderPrefab: {fileID: 1584038926392024672, guid: 69c1e7371f8471f48ab02f5a1480ca55, type: 3}
+  applyOverridesToAdvancedPrefab: 1
   usePooling: 1
   defenderPoolSize: 6
 --- !u!4 &1690561881
