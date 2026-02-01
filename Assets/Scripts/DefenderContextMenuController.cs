@@ -20,6 +20,8 @@ public class DefenderContextMenuController : MonoBehaviour
     private GameManager boundGameManager;
     private Vector2 lastScreenPosition;
 
+    public bool IsMenuVisible => menuRoot != null && !menuRoot.ClassListContains("hidden");
+
     private void Awake()
     {
         if (hudDocument == null)
@@ -201,7 +203,13 @@ public class DefenderContextMenuController : MonoBehaviour
         }
 
         Vector2 panelPosition = RuntimePanelUtils.ScreenToPanel(panel, screenPosition);
-        return menuRoot.worldBound.Contains(panelPosition);
+        VisualElement picked = panel.Pick(panelPosition);
+        if (picked == null)
+        {
+            return false;
+        }
+
+        return menuRoot.Contains(picked);
     }
 
     public void NotifyDefenderRemoved(DefenderHealth defender)

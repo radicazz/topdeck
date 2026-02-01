@@ -215,8 +215,14 @@ public class DefenderPlacementManager : MonoBehaviour
             return;
         }
 
-        if (menuController != null && menuController.IsPointerOverMenu(screenPosition))
+        if (menuController != null && menuController.IsMenuVisible)
         {
+            if (menuController.IsPointerOverMenu(screenPosition))
+            {
+                return;
+            }
+
+            menuController.HideMenu();
             return;
         }
 
