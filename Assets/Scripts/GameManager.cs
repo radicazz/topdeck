@@ -5,6 +5,7 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
     public static bool IsGameOver => Instance != null && Instance.isGameOver;
+    public static bool IsGameStarted => Instance != null && Instance.hasStarted;
 
     [Header("References")]
     [SerializeField] private TowerHealth tower;
@@ -25,15 +26,21 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float speedMultiplierPerRound = 0.05f;
     [SerializeField] private float damageMultiplierPerRound = 0.1f;
 
+    [Header("Start Screen")]
+    [SerializeField] private bool startOnAwake;
+
     [Header("State")]
+    [SerializeField] private bool hasStarted;
     [SerializeField] private bool isGameOver;
     [SerializeField] private int currentRound;
     [SerializeField] private int currentMoney;
     [SerializeField] private bool roundInProgress;
 
+    public bool HasStarted => hasStarted;
     public int CurrentRound => currentRound;
     public int CurrentMoney => currentMoney;
     public bool RoundInProgress => roundInProgress;
+    public int StartingRound => startingRound;
 
     private int spawnersCompleted;
     private bool roundQueued;
@@ -41,6 +48,7 @@ public class GameManager : MonoBehaviour
 
     public event System.Action<int> MoneyChanged;
     public event System.Action<int, bool> RoundChanged;
+    public event System.Action GameStarted;
     public event System.Action GameOverTriggered;
 
     private void Awake()
@@ -75,7 +83,10 @@ public class GameManager : MonoBehaviour
     private void Start()
     {
         HookSpawnerEvents();
-        BeginNextRound();
+        if (startOnAwake)
+        {
+            BeginGame();
+        }
     }
 
     private void OnDestroy()
@@ -131,6 +142,21 @@ public class GameManager : MonoBehaviour
         Debug.Log("Game Over: Tower destroyed.");
     }
 
+    public void BeginGame()
+    {
+        if (hasStarted || isGameOver)
+        {
+            return;
+        }
+
+        hasStarted = true;
+        currentRound = Mathf.Max(0, startingRound - 1);
+        roundInProgress = false;
+        roundQueued = false;
+        GameStarted?.Invoke();
+        BeginNextRound();
+    }
+
     public bool TryPurchaseDefender()
     {
         return TrySpend(defenderCost);
@@ -166,6 +192,11 @@ public class GameManager : MonoBehaviour
 
     private void BeginNextRound()
     {
+        if (!hasStarted)
+        {
+            return;
+        }
+
         if (isGameOver)
         {
             return;

@@ -20,7 +20,7 @@ public class DefenderPlacementSpot : MonoBehaviour
 
     public void TryPlace()
     {
-        if (occupied || manager == null || GameManager.IsGameOver)
+        if (occupied || manager == null || GameManager.IsGameOver || !GameManager.IsGameStarted)
         {
             return;
         }

@@ -31,5 +31,16 @@
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
+
+        <ui:VisualElement name="start-overlay" class="menu-overlay">
+            <ui:VisualElement class="menu-panel">
+                <ui:Label name="start-title" class="menu-title menu-title--start" text="TOPDECK" />
+                <ui:Label name="start-subtitle" class="menu-subtitle" text="Defend the tower. Start when ready." />
+                <ui:VisualElement class="menu-button-group">
+                    <ui:Button name="start-button" class="menu-button menu-button--primary" text="Start" />
+                    <ui:Button name="start-exit-button" class="menu-button menu-button--secondary" text="Exit" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

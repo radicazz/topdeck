@@ -39,11 +39,18 @@ Pause UI (`PauseMenuController`) uses:
 - `resume-button`
 - `quit-button`
 
+Start UI (`TowerHud`) uses:
+
+- `start-overlay`
+- `start-button`
+- `start-exit-button`
+
 ## Behavior
 
 - `TowerHud` updates health, money, and round labels from `TowerHealth` and `GameManager` events.
 - The `menu-overlay` is shown when `GameManager.IsGameOver` is true.
 - The HUD scales via `PanelSettings` using a 1920x1080 reference resolution and Match 0.5.
+- The start overlay is shown until `GameManager.BeginGame()` is called (via the start button).
 
 ## Pause Menu Behavior
 

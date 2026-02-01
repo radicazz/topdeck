@@ -62,6 +62,11 @@ public class PauseMenuController : MonoBehaviour
             return;
         }
 
+        if (!GameManager.IsGameStarted)
+        {
+            return;
+        }
+
         if (pauseOverlay == null)
         {
             CacheUi();

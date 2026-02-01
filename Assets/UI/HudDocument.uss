@@ -91,6 +91,10 @@
     color: #f5f7fb;
 }
 
+.menu-title--start {
+    color: #58a5ff;
+}
+
 .menu-subtitle {
     font-size: 20px;
     color: #f3f5f8;

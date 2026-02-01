@@ -18,6 +18,9 @@ public class TowerHud : MonoBehaviour
     [SerializeField] private string gameOverLabelName = "game-over";
     [SerializeField] private string restartButtonName = "restart-button";
     [SerializeField] private string exitButtonName = "exit-button";
+    [SerializeField] private string startOverlayName = "start-overlay";
+    [SerializeField] private string startButtonName = "start-button";
+    [SerializeField] private string startExitButtonName = "start-exit-button";
 
     private GameManager boundGameManager;
     private TowerHealth boundTower;
@@ -28,6 +31,9 @@ public class TowerHud : MonoBehaviour
     private Label gameOverLabel;
     private Button restartButton;
     private Button exitButton;
+    private VisualElement startOverlay;
+    private Button startButton;
+    private Button startExitButton;
 
     private void Awake()
     {
@@ -73,6 +79,7 @@ public class TowerHud : MonoBehaviour
         {
             boundGameManager.MoneyChanged -= HandleMoneyChanged;
             boundGameManager.RoundChanged -= HandleRoundChanged;
+            boundGameManager.GameStarted -= HandleGameStarted;
             boundGameManager.GameOverTriggered -= HandleGameOverTriggered;
         }
 
@@ -81,6 +88,7 @@ public class TowerHud : MonoBehaviour
         {
             boundGameManager.MoneyChanged += HandleMoneyChanged;
             boundGameManager.RoundChanged += HandleRoundChanged;
+            boundGameManager.GameStarted += HandleGameStarted;
             boundGameManager.GameOverTriggered += HandleGameOverTriggered;
         }
 
@@ -99,6 +107,7 @@ public class TowerHud : MonoBehaviour
         {
             boundGameManager.MoneyChanged -= HandleMoneyChanged;
             boundGameManager.RoundChanged -= HandleRoundChanged;
+            boundGameManager.GameStarted -= HandleGameStarted;
             boundGameManager.GameOverTriggered -= HandleGameOverTriggered;
             boundGameManager = null;
         }
@@ -114,10 +123,18 @@ public class TowerHud : MonoBehaviour
         if (boundGameManager != null)
         {
             HandleMoneyChanged(boundGameManager.CurrentMoney);
-            HandleRoundChanged(boundGameManager.CurrentRound, boundGameManager.RoundInProgress);
+            if (boundGameManager.HasStarted)
+            {
+                HandleRoundChanged(boundGameManager.CurrentRound, boundGameManager.RoundInProgress);
+            }
+            else
+            {
+                SetRoundPreview(boundGameManager.StartingRound);
+            }
         }
 
         SetMenuVisible(GameManager.IsGameOver);
+        SetStartVisible(!GameManager.IsGameOver && !GameManager.IsGameStarted);
     }
 
     private void HandleTowerHealthChanged(float health)
@@ -148,9 +165,26 @@ public class TowerHud : MonoBehaviour
         roundLabel.text = "Round " + round + stateLabel;
     }
 
+    private void HandleGameStarted()
+    {
+        SetStartVisible(false);
+    }
+
+    private void SetRoundPreview(int round)
+    {
+        if (roundLabel == null)
+        {
+            return;
+        }
+
+        int displayRound = Mathf.Max(1, round);
+        roundLabel.text = "Round " + displayRound + " (prep)";
+    }
+
     private void HandleGameOverTriggered()
     {
         SetMenuVisible(true);
+        SetStartVisible(false);
     }
 
     private void EnsureDocument()
@@ -197,6 +231,9 @@ public class TowerHud : MonoBehaviour
         gameOverLabel = root.Q<Label>(gameOverLabelName);
         restartButton = root.Q<Button>(restartButtonName);
         exitButton = root.Q<Button>(exitButtonName);
+        startOverlay = root.Q<VisualElement>(startOverlayName);
+        startButton = root.Q<Button>(startButtonName);
+        startExitButton = root.Q<Button>(startExitButtonName);
 
         if (gameOverLabel != null && string.IsNullOrEmpty(gameOverLabel.text))
         {
@@ -205,6 +242,7 @@ public class TowerHud : MonoBehaviour
 
         BindButtons();
         SetMenuVisible(GameManager.IsGameOver);
+        SetStartVisible(!GameManager.IsGameOver && !GameManager.IsGameStarted);
     }
 
     private void SetMenuVisible(bool isVisible)
@@ -214,6 +252,15 @@ public class TowerHud : MonoBehaviour
             return;
         }
         menuOverlay.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None;
+    }
+
+    private void SetStartVisible(bool isVisible)
+    {
+        if (startOverlay == null)
+        {
+            return;
+        }
+        startOverlay.EnableInClassList("hidden", !isVisible);
     }
 
     private void BindButtons()
@@ -229,6 +276,18 @@ public class TowerHud : MonoBehaviour
             exitButton.clicked -= HandleExitClicked;
             exitButton.clicked += HandleExitClicked;
         }
+
+        if (startButton != null)
+        {
+            startButton.clicked -= HandleStartClicked;
+            startButton.clicked += HandleStartClicked;
+        }
+
+        if (startExitButton != null)
+        {
+            startExitButton.clicked -= HandleExitClicked;
+            startExitButton.clicked += HandleExitClicked;
+        }
     }
 
     private void UnbindButtons()
@@ -242,6 +301,23 @@ public class TowerHud : MonoBehaviour
         {
             exitButton.clicked -= HandleExitClicked;
         }
+
+        if (startButton != null)
+        {
+            startButton.clicked -= HandleStartClicked;
+        }
+
+        if (startExitButton != null)
+        {
+            startExitButton.clicked -= HandleExitClicked;
+        }
+    }
+
+    private void HandleStartClicked()
+    {
+        Time.timeScale = 1f;
+        GameManager.Instance?.BeginGame();
+        SetStartVisible(false);
     }
 
     private void HandleRestartClicked()

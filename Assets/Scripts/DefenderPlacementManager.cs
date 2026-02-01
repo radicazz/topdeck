@@ -81,6 +81,11 @@ public class DefenderPlacementManager : MonoBehaviour
             return;
         }
 
+        if (!GameManager.IsGameStarted)
+        {
+            return;
+        }
+
         if (!IsPrimaryClickDown())
         {
             return;
