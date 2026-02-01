@@ -227,16 +227,38 @@ public class DefenderPlacementManager : MonoBehaviour
         }
 
         Ray ray = cameraToUse.ScreenPointToRay(screenPosition);
-        if (Physics.Raycast(ray, out RaycastHit hit))
+        RaycastHit[] hits = Physics.RaycastAll(ray);
+        if (hits != null && hits.Length > 0)
         {
-            DefenderHealth defender = hit.collider.GetComponentInParent<DefenderHealth>();
+            DefenderHealth defender = null;
+            float defenderDistance = float.MaxValue;
+            DefenderPlacementSpot spot = null;
+            float spotDistance = float.MaxValue;
+
+            for (int i = 0; i < hits.Length; i++)
+            {
+                RaycastHit hit = hits[i];
+                DefenderHealth hitDefender = hit.collider.GetComponentInParent<DefenderHealth>();
+                if (hitDefender != null && hit.distance < defenderDistance)
+                {
+                    defender = hitDefender;
+                    defenderDistance = hit.distance;
+                }
+
+                DefenderPlacementSpot hitSpot = hit.collider.GetComponent<DefenderPlacementSpot>();
+                if (hitSpot != null && hit.distance < spotDistance)
+                {
+                    spot = hitSpot;
+                    spotDistance = hit.distance;
+                }
+            }
+
             if (defender != null)
             {
                 menuController?.ShowUpgradeMenu(defender, screenPosition);
                 return;
             }
 
-            DefenderPlacementSpot spot = hit.collider.GetComponent<DefenderPlacementSpot>();
             if (spot != null)
             {
                 ShowPlacementMenu(spot, screenPosition);
@@ -441,6 +463,11 @@ public class DefenderPlacementManager : MonoBehaviour
 
         if (spot.HasDefender)
         {
+            DefenderHealth defender = spot.CurrentDefender;
+            if (defender != null)
+            {
+                menuController.ShowUpgradeMenu(defender, screenPosition);
+            }
             return;
         }
 
@@ -450,6 +477,11 @@ public class DefenderPlacementManager : MonoBehaviour
     public bool TryPlaceDefender(DefenderPlacementSpot spot, DefenderDefinition definition)
     {
         if (spot == null || definition == null)
+        {
+            return false;
+        }
+
+        if (spot.HasDefender)
         {
             return false;
         }
