@@ -19,6 +19,7 @@ public class DefenderContextMenuController : MonoBehaviour
     private DefenderHealth activeDefender;
     private GameManager boundGameManager;
     private Vector2 lastScreenPosition;
+    private bool callbacksRegistered;
 
     public bool IsMenuVisible => menuRoot != null && !menuRoot.ClassListContains("hidden");
 
@@ -86,6 +87,12 @@ public class DefenderContextMenuController : MonoBehaviour
         menuRoot = root.Q<VisualElement>(menuName);
         menuTitle = root.Q<Label>(menuTitleName);
         menuButtons = root.Q<VisualElement>(menuButtonsName);
+
+        if (!callbacksRegistered)
+        {
+            root.RegisterCallback<PointerDownEvent>(HandleRootPointerDown, TrickleDown.TrickleDown);
+            callbacksRegistered = true;
+        }
     }
 
     public void ShowPlacementMenu(DefenderPlacementSpot spot, Vector2 screenPosition)
@@ -212,6 +219,21 @@ public class DefenderContextMenuController : MonoBehaviour
         return menuRoot.Contains(picked);
     }
 
+    private void HandleRootPointerDown(PointerDownEvent evt)
+    {
+        if (menuRoot == null || menuRoot.ClassListContains("hidden"))
+        {
+            return;
+        }
+
+        if (menuRoot.worldBound.Contains(evt.position))
+        {
+            return;
+        }
+
+        HideMenu();
+    }
+
     public void NotifyDefenderRemoved(DefenderHealth defender)
     {
         if (activeDefender == defender)
@@ -229,10 +251,12 @@ public class DefenderContextMenuController : MonoBehaviour
 
         if (placementManager.TryPlaceDefender(activeSpot, definition))
         {
+            Debug.Log($"Placed defender '{definition.DisplayName}' at {activeSpot.transform.position}.");
             HideMenu();
         }
         else
         {
+            Debug.LogWarning($"Failed to place defender '{definition.DisplayName}'.");
             RefreshButtons();
         }
     }
@@ -246,10 +270,12 @@ public class DefenderContextMenuController : MonoBehaviour
 
         if (placementManager.TryUpgradeDefender(activeDefender))
         {
+            Debug.Log("Defender upgraded.");
             HideMenu();
         }
         else
         {
+            Debug.LogWarning("Failed to upgrade defender.");
             RefreshButtons();
         }
     }
@@ -263,10 +289,12 @@ public class DefenderContextMenuController : MonoBehaviour
 
         if (placementManager.TrySellDefender(activeDefender))
         {
+            Debug.Log("Defender sold.");
             HideMenu();
         }
         else
         {
+            Debug.LogWarning("Failed to sell defender.");
             RefreshButtons();
         }
     }

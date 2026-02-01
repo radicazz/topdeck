@@ -217,12 +217,6 @@ public class DefenderPlacementManager : MonoBehaviour
 
         if (menuController != null && menuController.IsMenuVisible)
         {
-            if (menuController.IsPointerOverMenu(screenPosition))
-            {
-                return;
-            }
-
-            menuController.HideMenu();
             return;
         }
 
@@ -484,22 +478,26 @@ public class DefenderPlacementManager : MonoBehaviour
     {
         if (spot == null || definition == null)
         {
+            Debug.LogWarning("TryPlaceDefender failed: missing spot or definition.");
             return false;
         }
 
         if (spot.HasDefender)
         {
+            Debug.LogWarning("TryPlaceDefender failed: spot already occupied.");
             return false;
         }
 
         if (GameManager.Instance != null && !GameManager.Instance.TryPurchaseDefender(definition.Cost))
         {
+            Debug.LogWarning("TryPlaceDefender failed: insufficient funds.");
             return false;
         }
 
         DefenderHealth health = SpawnDefender(spot.transform.position, definition);
         if (health == null)
         {
+            Debug.LogWarning("TryPlaceDefender failed: SpawnDefender returned null.");
             return false;
         }
 
