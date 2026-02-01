@@ -1,5 +1,8 @@
 using UnityEngine;
 using UnityEngine.UIElements;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 public class DefenderContextMenuController : MonoBehaviour
 {
@@ -33,6 +36,7 @@ public class DefenderContextMenuController : MonoBehaviour
     [Header("Debug (Editor Only)")]
     [SerializeField] private bool showDebugOverlay = true;
     [SerializeField] private Vector2 debugOverlayOffset = new Vector2(16f, 16f);
+    private const string DebugOverlayPrefKey = "Topdeck.DefenderMenuDebugOverlay";
 #endif
 
     public bool IsMenuVisible => menuRoot != null && !menuRoot.ClassListContains("hidden");
@@ -52,6 +56,9 @@ public class DefenderContextMenuController : MonoBehaviour
 
     private void OnEnable()
     {
+#if UNITY_EDITOR
+        SyncDebugOverlayPref();
+#endif
         CacheUi();
         Bind();
         HideMenu();
@@ -136,6 +143,17 @@ public class DefenderContextMenuController : MonoBehaviour
         }
     }
 
+#if UNITY_EDITOR
+    private void SyncDebugOverlayPref()
+    {
+        showDebugOverlay = EditorPrefs.GetBool(DebugOverlayPrefKey, showDebugOverlay);
+    }
+
+    private void OnValidate()
+    {
+        EditorPrefs.SetBool(DebugOverlayPrefKey, showDebugOverlay);
+    }
+#endif
     private UIDocument FindHudDocumentWithMenu()
     {
         UIDocument[] documents = FindObjectsByType<UIDocument>(FindObjectsSortMode.None);
