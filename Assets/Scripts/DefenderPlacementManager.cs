@@ -68,7 +68,14 @@ public class DefenderPlacementManager : MonoBehaviour
     private int placementLayer = -1;
     private DefenderDefinition selectedDefender;
 
-    public IReadOnlyList<DefenderDefinition> DefenderTypes => defenderTypes;
+    public IReadOnlyList<DefenderDefinition> DefenderTypes
+    {
+        get
+        {
+            EnsureDefenderTypes();
+            return defenderTypes;
+        }
+    }
     public DefenderDefinition SelectedDefender => selectedDefender;
     public event Action<DefenderDefinition> DefenderSelectionChanged;
 
@@ -160,6 +167,11 @@ public class DefenderPlacementManager : MonoBehaviour
         }
 
         defaultDefenderIndex = Mathf.Clamp(defaultDefenderIndex, 0, defenderTypes.Count - 1);
+
+        if (selectedDefender == null && defenderTypes.Count > 0)
+        {
+            SelectDefender(GetDefaultDefender());
+        }
     }
 
     private DefenderDefinition GetDefaultDefender()
