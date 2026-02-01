@@ -49,6 +49,14 @@ Start UI (`TowerHud`) uses:
 - `start-button`
 - `start-exit-button`
 
+## Defender Selection Data
+
+- The defender selector is populated from `DefenderPlacementManager.DefenderTypes`.
+- If the list is empty, the manager builds two fallback definitions.
+- Basic Ally uses the "Basic Defender (Fallback)" fields.
+- Advanced Ally is derived from the basic stats using the "Advanced Defender (Fallback)" multipliers and `advancedDefenderPrefab`.
+- Assign `advancedDefenderPrefab` in the scene to ensure the advanced ally spawns its unique prefab.
+
 ## Behavior
 
 - `TowerHud` updates health, money, and round labels from `TowerHealth` and `GameManager` events.

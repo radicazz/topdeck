@@ -568,6 +568,7 @@ public class DefenderPlacementManager : MonoBehaviour
 
         if (definition == null)
         {
+            defenderDefinitions.Remove(defender);
             Destroy(defender.gameObject);
             return;
         }
