@@ -18,7 +18,12 @@ public class DefenderPlacementManager : MonoBehaviour
     [SerializeField] private Color spotOccupiedColor = new Color(0.35f, 0.35f, 0.35f);
     [SerializeField, Range(0.2f, 1f)] private float placementRadiusFactor = 0.55f;
 
-    [Header("Defender")]
+    [Header("Defender Types")]
+    [SerializeField] private List<DefenderDefinition> defenderTypes = new List<DefenderDefinition>();
+    [SerializeField, Min(0)] private int defaultDefenderIndex;
+
+    [Header("Basic Defender (Fallback)")]
+    [SerializeField] private int defenderCost = 100;
     [SerializeField] private GameObject defenderPrefab;
     [SerializeField] private float defenderMaxHealth = 6f;
     [SerializeField] private float defenderRange = 4f;
@@ -30,21 +35,42 @@ public class DefenderPlacementManager : MonoBehaviour
     [SerializeField] private bool applyOverridesToPrefab = true;
     [SerializeField] private LayerMask enemyTargetMask = ~0;
 
-    [Header("Defender Movement")]
+    [Header("Basic Defender Movement (Fallback)")]
     [SerializeField] private float defenderMoveRadius = 0.8f;
     [SerializeField] private float defenderMoveSpeed = 1.5f;
     [SerializeField] private float defenderTurnSpeed = 10f;
+
+    [Header("Advanced Defender (Fallback)")]
+    [SerializeField] private string advancedDefenderName = "Advanced Ally";
+    [SerializeField] private int advancedDefenderCost = 160;
+    [SerializeField] private float advancedHealthMultiplier = 1.4f;
+    [SerializeField] private float advancedRangeMultiplier = 1.15f;
+    [SerializeField] private float advancedAttackIntervalMultiplier = 0.8f;
+    [SerializeField] private float advancedDamageMultiplier = 1.6f;
+    [SerializeField] private float advancedMoveRadiusMultiplier = 1.1f;
+    [SerializeField] private float advancedMoveSpeedMultiplier = 1.15f;
+    [SerializeField] private float advancedTurnSpeedMultiplier = 1.1f;
+    [SerializeField] private Vector3 advancedScale = new Vector3(0.9f, 0.9f, 0.9f);
+    [SerializeField] private Color advancedColor = new Color(0.95f, 0.85f, 0.25f);
+    [SerializeField] private GameObject advancedDefenderPrefab;
+    [SerializeField] private bool applyOverridesToAdvancedPrefab = true;
 
     [Header("Pooling")]
     [SerializeField] private bool usePooling = true;
     [SerializeField, Min(0)] private int defenderPoolSize = 0;
 
     private readonly List<DefenderPlacementSpot> spots = new List<DefenderPlacementSpot>();
-    private readonly Queue<DefenderHealth> defenderPool = new Queue<DefenderHealth>();
+    private readonly Dictionary<DefenderDefinition, Queue<DefenderHealth>> defenderPools = new Dictionary<DefenderDefinition, Queue<DefenderHealth>>();
+    private readonly Dictionary<DefenderHealth, DefenderDefinition> defenderDefinitions = new Dictionary<DefenderHealth, DefenderDefinition>();
     private Camera mainCamera;
     private Transform defenderContainer;
     private int defenderLayer = -1;
     private int placementLayer = -1;
+    private DefenderDefinition selectedDefender;
+
+    public IReadOnlyList<DefenderDefinition> DefenderTypes => defenderTypes;
+    public DefenderDefinition SelectedDefender => selectedDefender;
+    public event Action<DefenderDefinition> DefenderSelectionChanged;
 
     private void Awake()
     {
@@ -54,6 +80,8 @@ public class DefenderPlacementManager : MonoBehaviour
         defenderContainer.SetParent(transform, false);
         defenderLayer = LayerMask.NameToLayer("Defender");
         placementLayer = LayerMask.NameToLayer("Placement");
+        EnsureDefenderTypes();
+        SelectDefender(GetDefaultDefender());
     }
 
     private void Start()
@@ -71,6 +99,7 @@ public class DefenderPlacementManager : MonoBehaviour
         }
 
         BuildPlacementSpots();
+        EnsureDefenderTypes();
         WarmPool();
     }
 
@@ -111,6 +140,105 @@ public class DefenderPlacementManager : MonoBehaviour
                 spot.TryPlace();
             }
         }
+    }
+
+    private void EnsureDefenderTypes()
+    {
+        if (defenderTypes == null)
+        {
+            defenderTypes = new List<DefenderDefinition>();
+        }
+
+        defenderTypes.RemoveAll(definition => definition == null);
+
+        if (defenderTypes.Count == 0)
+        {
+            DefenderDefinition basic = CreateBasicFallback();
+            DefenderDefinition advanced = CreateAdvancedFallback(basic);
+            defenderTypes.Add(basic);
+            defenderTypes.Add(advanced);
+        }
+
+        defaultDefenderIndex = Mathf.Clamp(defaultDefenderIndex, 0, defenderTypes.Count - 1);
+    }
+
+    private DefenderDefinition GetDefaultDefender()
+    {
+        if (defenderTypes == null || defenderTypes.Count == 0)
+        {
+            return null;
+        }
+
+        int index = Mathf.Clamp(defaultDefenderIndex, 0, defenderTypes.Count - 1);
+        return defenderTypes[index];
+    }
+
+    public bool SelectDefender(DefenderDefinition definition)
+    {
+        if (definition == null || defenderTypes == null || defenderTypes.Count == 0)
+        {
+            return false;
+        }
+
+        if (!defenderTypes.Contains(definition))
+        {
+            return false;
+        }
+
+        if (selectedDefender == definition)
+        {
+            return true;
+        }
+
+        selectedDefender = definition;
+        DefenderSelectionChanged?.Invoke(selectedDefender);
+        return true;
+    }
+
+    private DefenderDefinition CreateBasicFallback()
+    {
+        return new DefenderDefinition
+        {
+            Id = "basic",
+            DisplayName = "Basic Ally",
+            Cost = Mathf.Max(0, defenderCost),
+            Prefab = defenderPrefab,
+            ApplyOverridesToPrefab = applyOverridesToPrefab,
+            Scale = defenderScale,
+            Color = defenderColor,
+            HeightOffset = defenderHeightOffset,
+            MaxHealth = defenderMaxHealth,
+            Range = defenderRange,
+            AttackInterval = defenderAttackInterval,
+            Damage = defenderDamage,
+            MoveRadius = defenderMoveRadius,
+            MoveSpeed = defenderMoveSpeed,
+            TurnSpeed = defenderTurnSpeed
+        };
+    }
+
+    private DefenderDefinition CreateAdvancedFallback(DefenderDefinition basic)
+    {
+        if (basic == null)
+        {
+            basic = CreateBasicFallback();
+        }
+
+        return basic.CloneWithOverrides(
+            "advanced",
+            advancedDefenderName,
+            Mathf.Max(0, advancedDefenderCost),
+            advancedHealthMultiplier,
+            advancedRangeMultiplier,
+            advancedAttackIntervalMultiplier,
+            advancedDamageMultiplier,
+            advancedMoveRadiusMultiplier,
+            advancedMoveSpeedMultiplier,
+            advancedTurnSpeedMultiplier,
+            advancedScale,
+            advancedColor,
+            advancedDefenderPrefab,
+            applyOverridesToAdvancedPrefab);
     }
 
     private void BuildPlacementSpots()
@@ -245,27 +373,75 @@ public class DefenderPlacementManager : MonoBehaviour
             return;
         }
 
-        for (int i = 0; i < defenderPoolSize; i++)
+        EnsureDefenderTypes();
+        if (defenderTypes == null || defenderTypes.Count == 0)
         {
-            DefenderHealth defender = CreateDefenderInstance();
+            return;
+        }
+
+        int perType = Mathf.Max(0, defenderPoolSize / defenderTypes.Count);
+        int remainder = Mathf.Max(0, defenderPoolSize - (perType * defenderTypes.Count));
+
+        for (int i = 0; i < defenderTypes.Count; i++)
+        {
+            int count = perType + (i < remainder ? 1 : 0);
+            WarmPoolForType(defenderTypes[i], count);
+        }
+    }
+
+    private void WarmPoolForType(DefenderDefinition definition, int count)
+    {
+        if (definition == null || count <= 0)
+        {
+            return;
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            DefenderHealth defender = CreateDefenderInstance(definition);
             ReleaseDefender(defender);
         }
     }
 
-    private DefenderHealth GetDefender()
+    private DefenderHealth GetDefender(DefenderDefinition definition)
     {
-        if (usePooling && defenderPool.Count > 0)
+        if (definition == null)
         {
-            return defenderPool.Dequeue();
+            return null;
         }
 
-        return CreateDefenderInstance();
+        if (usePooling)
+        {
+            Queue<DefenderHealth> pool = GetPool(definition);
+            if (pool.Count > 0)
+            {
+                return pool.Dequeue();
+            }
+        }
+
+        return CreateDefenderInstance(definition);
     }
 
-    private DefenderHealth CreateDefenderInstance()
+    private Queue<DefenderHealth> GetPool(DefenderDefinition definition)
     {
-        GameObject defenderObject = defenderPrefab != null
-            ? Instantiate(defenderPrefab)
+        if (!defenderPools.TryGetValue(definition, out Queue<DefenderHealth> pool))
+        {
+            pool = new Queue<DefenderHealth>();
+            defenderPools.Add(definition, pool);
+        }
+
+        return pool;
+    }
+
+    private DefenderHealth CreateDefenderInstance(DefenderDefinition definition)
+    {
+        if (definition == null)
+        {
+            return null;
+        }
+
+        GameObject defenderObject = definition.Prefab != null
+            ? Instantiate(definition.Prefab)
             : GameObject.CreatePrimitive(PrimitiveType.Cube);
 
         defenderObject.name = "Defender";
@@ -279,6 +455,7 @@ public class DefenderPlacementManager : MonoBehaviour
 
         DefenderHealth health = ComponentUtils.GetOrAddComponent<DefenderHealth>(defenderObject);
         ComponentUtils.GetOrAddComponent<DefenderAttack>(defenderObject);
+        defenderDefinitions[health] = definition;
 
         return health;
     }
@@ -290,7 +467,16 @@ public class DefenderPlacementManager : MonoBehaviour
             return;
         }
 
+        defenderDefinitions.TryGetValue(defender, out DefenderDefinition definition);
+
         if (!usePooling)
+        {
+            defenderDefinitions.Remove(defender);
+            Destroy(defender.gameObject);
+            return;
+        }
+
+        if (definition == null)
         {
             Destroy(defender.gameObject);
             return;
@@ -298,17 +484,29 @@ public class DefenderPlacementManager : MonoBehaviour
 
         defender.transform.SetParent(defenderContainer, false);
         defender.gameObject.SetActive(false);
-        defenderPool.Enqueue(defender);
+        GetPool(definition).Enqueue(defender);
     }
 
     public DefenderHealth SpawnDefender(Vector3 spotPosition)
     {
-        if (GameManager.Instance != null && !GameManager.Instance.TryPurchaseDefender())
+        EnsureDefenderTypes();
+        if (selectedDefender == null)
+        {
+            SelectDefender(GetDefaultDefender());
+        }
+
+        DefenderDefinition definition = selectedDefender;
+        if (definition == null)
         {
             return null;
         }
 
-        DefenderHealth health = GetDefender();
+        if (GameManager.Instance != null && !GameManager.Instance.TryPurchaseDefender(definition.Cost))
+        {
+            return null;
+        }
+
+        DefenderHealth health = GetDefender(definition);
         if (health == null)
         {
             return null;
@@ -320,25 +518,18 @@ public class DefenderPlacementManager : MonoBehaviour
             defenderObject.SetActive(false);
         }
         defenderObject.transform.SetParent(defenderContainer, false);
-        Vector3 spawnPosition = spotPosition + Vector3.up * defenderHeightOffset;
+        Vector3 spawnPosition = spotPosition + Vector3.up * definition.HeightOffset;
         defenderObject.transform.position = spawnPosition;
 
-        if (defenderPrefab == null || applyOverridesToPrefab)
+        if (definition.Prefab == null || definition.ApplyOverridesToPrefab)
         {
-            defenderObject.transform.localScale = defenderScale;
-            var renderer = defenderObject.GetComponent<MeshRenderer>();
-            if (renderer != null)
-            {
-                RendererUtils.SetColor(renderer, defenderColor);
-            }
+            definition.ApplyVisualOverrides(defenderObject);
         }
 
-        health.Initialize(defenderMaxHealth);
         health.SetReleaseAction(usePooling ? ReleaseDefender : null);
 
         DefenderAttack attack = ComponentUtils.GetOrAddComponent<DefenderAttack>(defenderObject);
-        attack.Configure(defenderRange, defenderAttackInterval, defenderDamage, enemyTargetMask);
-        attack.ConfigureMovement(spawnPosition, defenderMoveRadius, defenderMoveSpeed, defenderTurnSpeed, terrain);
+        definition.Configure(health, attack, spawnPosition, terrain, enemyTargetMask);
 
         if (usePooling)
         {

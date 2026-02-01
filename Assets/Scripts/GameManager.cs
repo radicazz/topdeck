@@ -162,6 +162,21 @@ public class GameManager : MonoBehaviour
         return TrySpend(defenderCost);
     }
 
+    public bool TryPurchaseDefender(int cost)
+    {
+        return TrySpend(cost);
+    }
+
+    public bool CanAfford(int amount)
+    {
+        if (amount <= 0)
+        {
+            return true;
+        }
+
+        return currentMoney >= amount;
+    }
+
     public bool TrySpend(int amount)
     {
         if (amount <= 0)
