@@ -11,6 +11,7 @@ public class DefenderContextMenuController : MonoBehaviour
     [SerializeField] private string menuName = "defender-menu";
     [SerializeField] private string menuTitleName = "defender-menu-title";
     [SerializeField] private string menuButtonsName = "defender-menu-buttons";
+    [SerializeField] private bool logMenuEvents;
 
     private VisualElement menuRoot;
     private Label menuTitle;
@@ -20,6 +21,19 @@ public class DefenderContextMenuController : MonoBehaviour
     private GameManager boundGameManager;
     private Vector2 lastScreenPosition;
     private bool callbacksRegistered;
+    private bool warnedMissingHud;
+    private bool warnedMissingMenu;
+    private bool warnedMissingPanel;
+    private bool retryShowQueued;
+    private Vector2 retryScreenPosition;
+    private int menuShownFrame = -1;
+    private float menuShownTime = -1f;
+
+#if UNITY_EDITOR
+    [Header("Debug (Editor Only)")]
+    [SerializeField] private bool showDebugOverlay = true;
+    [SerializeField] private Vector2 debugOverlayOffset = new Vector2(16f, 16f);
+#endif
 
     public bool IsMenuVisible => menuRoot != null && !menuRoot.ClassListContains("hidden");
 
@@ -75,6 +89,11 @@ public class DefenderContextMenuController : MonoBehaviour
     {
         if (hudDocument == null)
         {
+            if (!warnedMissingHud)
+            {
+                Debug.LogWarning("DefenderContextMenuController: HUD UIDocument reference is missing.");
+                warnedMissingHud = true;
+            }
             return;
         }
 
@@ -88,6 +107,28 @@ public class DefenderContextMenuController : MonoBehaviour
         menuTitle = root.Q<Label>(menuTitleName);
         menuButtons = root.Q<VisualElement>(menuButtonsName);
 
+        if (menuRoot == null)
+        {
+            UIDocument fallback = FindHudDocumentWithMenu();
+            if (fallback != null && fallback != hudDocument)
+            {
+                hudDocument = fallback;
+                root = hudDocument.rootVisualElement;
+                if (root != null)
+                {
+                    menuRoot = root.Q<VisualElement>(menuName);
+                    menuTitle = root.Q<Label>(menuTitleName);
+                    menuButtons = root.Q<VisualElement>(menuButtonsName);
+                }
+            }
+        }
+
+        if ((menuRoot == null || menuTitle == null || menuButtons == null) && !warnedMissingMenu)
+        {
+            Debug.LogWarning($"DefenderContextMenuController: Could not find UI elements ({menuName}, {menuTitleName}, {menuButtonsName}) on UIDocument '{hudDocument.name}'.");
+            warnedMissingMenu = true;
+        }
+
         if (!callbacksRegistered)
         {
             root.RegisterCallback<PointerDownEvent>(HandleRootPointerDown, TrickleDown.TrickleDown);
@@ -95,15 +136,55 @@ public class DefenderContextMenuController : MonoBehaviour
         }
     }
 
+    private UIDocument FindHudDocumentWithMenu()
+    {
+        UIDocument[] documents = FindObjectsByType<UIDocument>(FindObjectsSortMode.None);
+        if (documents == null)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < documents.Length; i++)
+        {
+            UIDocument document = documents[i];
+            if (document == null)
+            {
+                continue;
+            }
+
+            VisualElement root = document.rootVisualElement;
+            if (root == null)
+            {
+                continue;
+            }
+
+            if (root.Q<VisualElement>(menuName) != null)
+            {
+                return document;
+            }
+        }
+
+        return null;
+    }
+
     public void ShowPlacementMenu(DefenderPlacementSpot spot, Vector2 screenPosition)
     {
         if (menuRoot == null || placementManager == null || spot == null)
         {
+            if (menuRoot == null && !warnedMissingMenu)
+            {
+                Debug.LogWarning("DefenderContextMenuController: Menu root is missing; cannot show placement menu.");
+                warnedMissingMenu = true;
+            }
             return;
         }
 
         activeSpot = spot;
         activeDefender = null;
+        if (logMenuEvents)
+        {
+            Debug.Log($"DefenderContextMenuController: Showing placement menu for spot '{spot.name}'.");
+        }
 
         if (menuTitle != null)
         {
@@ -138,11 +219,20 @@ public class DefenderContextMenuController : MonoBehaviour
     {
         if (menuRoot == null || placementManager == null || defender == null)
         {
+            if (menuRoot == null && !warnedMissingMenu)
+            {
+                Debug.LogWarning("DefenderContextMenuController: Menu root is missing; cannot show upgrade menu.");
+                warnedMissingMenu = true;
+            }
             return;
         }
 
         activeSpot = null;
         activeDefender = defender;
+        if (logMenuEvents)
+        {
+            Debug.Log($"DefenderContextMenuController: Showing upgrade menu for defender '{defender.name}'.");
+        }
 
         if (menuTitle != null)
         {
@@ -191,6 +281,11 @@ public class DefenderContextMenuController : MonoBehaviour
             return;
         }
 
+        if (logMenuEvents && !menuRoot.ClassListContains("hidden"))
+        {
+            Debug.Log("DefenderContextMenuController: Hiding menu.");
+        }
+
         menuRoot.EnableInClassList("hidden", true);
         activeSpot = null;
         activeDefender = null;
@@ -222,6 +317,11 @@ public class DefenderContextMenuController : MonoBehaviour
     private void HandleRootPointerDown(PointerDownEvent evt)
     {
         if (menuRoot == null || menuRoot.ClassListContains("hidden"))
+        {
+            return;
+        }
+
+        if (Time.frameCount == menuShownFrame || Time.unscaledTime - menuShownTime < 0.05f)
         {
             return;
         }
@@ -333,6 +433,22 @@ public class DefenderContextMenuController : MonoBehaviour
         IPanel panel = menuRoot.panel;
         if (panel == null)
         {
+            if (!warnedMissingPanel)
+            {
+                Debug.LogWarning("DefenderContextMenuController: UI panel not ready; deferring menu display.");
+                warnedMissingPanel = true;
+            }
+
+            if (!retryShowQueued)
+            {
+                retryShowQueued = true;
+                retryScreenPosition = screenPosition;
+                menuRoot.schedule.Execute(() =>
+                {
+                    retryShowQueued = false;
+                    ShowMenuAt(retryScreenPosition);
+                }).ExecuteLater(0);
+            }
             return;
         }
 
@@ -340,9 +456,38 @@ public class DefenderContextMenuController : MonoBehaviour
         menuRoot.style.left = panelPosition.x + 12f;
         menuRoot.style.top = panelPosition.y + 12f;
         menuRoot.EnableInClassList("hidden", false);
+        menuShownFrame = Time.frameCount;
+        menuShownTime = Time.unscaledTime;
 
         menuRoot.schedule.Execute(() => ClampToPanel(panel)).ExecuteLater(0);
     }
+
+#if UNITY_EDITOR
+    private void OnGUI()
+    {
+        if (!showDebugOverlay)
+        {
+            return;
+        }
+
+        string spotName = activeSpot != null ? activeSpot.name : "None";
+        string defenderName = activeDefender != null ? activeDefender.name : "None";
+        string menuState = menuRoot != null && !menuRoot.ClassListContains("hidden") ? "Visible" : "Hidden";
+        string gameState = $"Started={GameManager.IsGameStarted} Over={GameManager.IsGameOver}";
+        string text =
+            $"Defender Menu: {menuState}\n" +
+            $"{gameState}\n" +
+            $"Active Spot: {spotName}\n" +
+            $"Active Defender: {defenderName}\n" +
+            $"Last Screen Pos: {lastScreenPosition}\n" +
+            $"HUD Document: {(hudDocument != null ? hudDocument.name : "Missing")}\n" +
+            $"Menu Root: {(menuRoot != null ? "OK" : "Missing")}";
+
+        Rect rect = new Rect(debugOverlayOffset.x, debugOverlayOffset.y, 320f, 120f);
+        GUI.Box(rect, "Defender Menu Debug");
+        GUI.Label(new Rect(rect.x + 8f, rect.y + 20f, rect.width - 16f, rect.height - 24f), text);
+    }
+#endif
 
     private void ClampToPanel(IPanel panel)
     {
