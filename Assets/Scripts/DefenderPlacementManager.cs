@@ -9,6 +9,7 @@ public class DefenderPlacementManager : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private ProceduralTerrainGenerator terrain;
+    [SerializeField] private DefenderContextMenuController menuController;
 
     [Header("Placement Spots")]
     [SerializeField, Min(1)] private int placementCount = 12;
@@ -55,13 +56,47 @@ public class DefenderPlacementManager : MonoBehaviour
     [SerializeField] private GameObject advancedDefenderPrefab;
     [SerializeField] private bool applyOverridesToAdvancedPrefab = true;
 
+    [Header("Basic Upgrade Prefabs (Fallback)")]
+    [SerializeField] private GameObject basicMiscUpgradePrefab;
+    [SerializeField] private GameObject basicHealthUpgradePrefab;
+    [SerializeField] private GameObject basicFullUpgradePrefab;
+
+    [Header("Basic Upgrade Stats (Fallback)")]
+    [SerializeField] private int basicMiscUpgradeCost = 60;
+    [SerializeField] private int basicHealthUpgradeCost = 90;
+    [SerializeField] private int basicFullUpgradeCost = 140;
+    [SerializeField] private float basicMiscHealthMultiplier = 1.2f;
+    [SerializeField] private float basicMiscDamageMultiplier = 1.2f;
+    [SerializeField] private float basicHealthHealthMultiplier = 1.4f;
+    [SerializeField] private float basicHealthDamageMultiplier = 1.35f;
+    [SerializeField] private float basicFullHealthMultiplier = 1.7f;
+    [SerializeField] private float basicFullDamageMultiplier = 1.6f;
+
+    [Header("Advanced Upgrade Prefabs (Fallback)")]
+    [SerializeField] private GameObject advancedMiscUpgradePrefab;
+    [SerializeField] private GameObject advancedHealthUpgradePrefab;
+    [SerializeField] private GameObject advancedFullUpgradePrefab;
+
+    [Header("Advanced Upgrade Stats (Fallback)")]
+    [SerializeField] private int advancedMiscUpgradeCost = 100;
+    [SerializeField] private int advancedHealthUpgradeCost = 150;
+    [SerializeField] private int advancedFullUpgradeCost = 220;
+    [SerializeField] private float advancedMiscHealthMultiplier = 1.25f;
+    [SerializeField] private float advancedMiscDamageMultiplier = 1.3f;
+    [SerializeField] private float advancedHealthHealthMultiplier = 1.55f;
+    [SerializeField] private float advancedHealthDamageMultiplier = 1.5f;
+    [SerializeField] private float advancedFullHealthMultiplier = 1.85f;
+    [SerializeField] private float advancedFullDamageMultiplier = 1.8f;
+
     [Header("Pooling")]
     [SerializeField] private bool usePooling = true;
     [SerializeField, Min(0)] private int defenderPoolSize = 0;
 
     private readonly List<DefenderPlacementSpot> spots = new List<DefenderPlacementSpot>();
-    private readonly Dictionary<DefenderDefinition, Queue<DefenderHealth>> defenderPools = new Dictionary<DefenderDefinition, Queue<DefenderHealth>>();
-    private readonly Dictionary<DefenderHealth, DefenderDefinition> defenderDefinitions = new Dictionary<DefenderHealth, DefenderDefinition>();
+    private readonly Dictionary<DefenderPoolKey, Queue<DefenderHealth>> defenderPools = new Dictionary<DefenderPoolKey, Queue<DefenderHealth>>();
+    private readonly Dictionary<DefenderHealth, DefenderPoolKey> defenderPoolKeys = new Dictionary<DefenderHealth, DefenderPoolKey>();
+    private readonly Dictionary<DefenderHealth, DefenderInstanceData> defenderInstances = new Dictionary<DefenderHealth, DefenderInstanceData>();
+    private readonly Dictionary<DefenderHealth, DefenderPlacementSpot> defenderSpots = new Dictionary<DefenderHealth, DefenderPlacementSpot>();
     private Camera mainCamera;
     private Transform defenderContainer;
     private int defenderLayer = -1;
@@ -79,6 +114,45 @@ public class DefenderPlacementManager : MonoBehaviour
     public DefenderDefinition SelectedDefender => selectedDefender;
     public event Action<DefenderDefinition> DefenderSelectionChanged;
 
+    private class DefenderInstanceData
+    {
+        public DefenderDefinition Definition;
+        public int UpgradeLevel;
+        public int InvestedCost;
+    }
+
+    private readonly struct DefenderPoolKey : IEquatable<DefenderPoolKey>
+    {
+        public readonly DefenderDefinition Definition;
+        public readonly GameObject Prefab;
+
+        public DefenderPoolKey(DefenderDefinition definition, GameObject prefab)
+        {
+            Definition = definition;
+            Prefab = prefab;
+        }
+
+        public bool Equals(DefenderPoolKey other)
+        {
+            return Definition == other.Definition && Prefab == other.Prefab;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is DefenderPoolKey other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hash = Definition != null ? Definition.GetHashCode() : 0;
+                hash = (hash * 397) ^ (Prefab != null ? Prefab.GetHashCode() : 0);
+                return hash;
+            }
+        }
+    }
+
     private void Awake()
     {
         mainCamera = Camera.main;
@@ -87,6 +161,10 @@ public class DefenderPlacementManager : MonoBehaviour
         defenderContainer.SetParent(transform, false);
         defenderLayer = LayerMask.NameToLayer("Defender");
         placementLayer = LayerMask.NameToLayer("Placement");
+        if (menuController == null)
+        {
+            menuController = FindFirstObjectByType<DefenderContextMenuController>();
+        }
         EnsureDefenderTypes();
         SelectDefender(GetDefaultDefender());
     }
@@ -96,6 +174,11 @@ public class DefenderPlacementManager : MonoBehaviour
         if (terrain == null)
         {
             terrain = FindFirstObjectByType<ProceduralTerrainGenerator>();
+        }
+
+        if (menuController == null)
+        {
+            menuController = FindFirstObjectByType<DefenderContextMenuController>();
         }
 
         if (terrain == null)
@@ -132,6 +215,11 @@ public class DefenderPlacementManager : MonoBehaviour
             return;
         }
 
+        if (menuController != null && menuController.IsPointerOverMenu(screenPosition))
+        {
+            return;
+        }
+
         Camera cameraToUse = mainCamera != null ? mainCamera : Camera.main;
         if (cameraToUse == null)
         {
@@ -141,12 +229,22 @@ public class DefenderPlacementManager : MonoBehaviour
         Ray ray = cameraToUse.ScreenPointToRay(screenPosition);
         if (Physics.Raycast(ray, out RaycastHit hit))
         {
+            DefenderHealth defender = hit.collider.GetComponentInParent<DefenderHealth>();
+            if (defender != null)
+            {
+                menuController?.ShowUpgradeMenu(defender, screenPosition);
+                return;
+            }
+
             DefenderPlacementSpot spot = hit.collider.GetComponent<DefenderPlacementSpot>();
             if (spot != null)
             {
-                spot.TryPlace();
+                ShowPlacementMenu(spot, screenPosition);
+                return;
             }
         }
+
+        menuController?.HideMenu();
     }
 
     private void EnsureDefenderTypes()
@@ -172,6 +270,22 @@ public class DefenderPlacementManager : MonoBehaviour
             {
                 basic.Prefab = defenderPrefab;
             }
+            if (basic != null && (basic.UpgradeSteps == null || basic.UpgradeSteps.Count == 0))
+            {
+                basic.SetUpgradeSteps(BuildUpgradeSteps(
+                    basicMiscUpgradePrefab,
+                    basicHealthUpgradePrefab,
+                    basicFullUpgradePrefab,
+                    basicMiscUpgradeCost,
+                    basicHealthUpgradeCost,
+                    basicFullUpgradeCost,
+                    basicMiscHealthMultiplier,
+                    basicMiscDamageMultiplier,
+                    basicHealthHealthMultiplier,
+                    basicHealthDamageMultiplier,
+                    basicFullHealthMultiplier,
+                    basicFullDamageMultiplier));
+            }
 
             DefenderDefinition advanced = FindDefinition("advanced");
             if (advanced == null && defenderTypes.Count > 1)
@@ -190,6 +304,22 @@ public class DefenderPlacementManager : MonoBehaviour
                 }
 
                 EnsureAdvancedDiffers(basic, advanced);
+                if (advanced.UpgradeSteps == null || advanced.UpgradeSteps.Count == 0)
+                {
+                    advanced.SetUpgradeSteps(BuildUpgradeSteps(
+                        advancedMiscUpgradePrefab,
+                        advancedHealthUpgradePrefab,
+                        advancedFullUpgradePrefab,
+                        advancedMiscUpgradeCost,
+                        advancedHealthUpgradeCost,
+                        advancedFullUpgradeCost,
+                        advancedMiscHealthMultiplier,
+                        advancedMiscDamageMultiplier,
+                        advancedHealthHealthMultiplier,
+                        advancedHealthDamageMultiplier,
+                        advancedFullHealthMultiplier,
+                        advancedFullDamageMultiplier));
+                }
             }
         }
 
@@ -285,9 +415,310 @@ public class DefenderPlacementManager : MonoBehaviour
         return true;
     }
 
+    public void HandleSpotClicked(DefenderPlacementSpot spot)
+    {
+        if (spot == null)
+        {
+            return;
+        }
+
+        Camera cameraToUse = mainCamera != null ? mainCamera : Camera.main;
+        if (cameraToUse == null)
+        {
+            return;
+        }
+
+        Vector3 screenPosition = cameraToUse.WorldToScreenPoint(spot.transform.position);
+        ShowPlacementMenu(spot, screenPosition);
+    }
+
+    public void ShowPlacementMenu(DefenderPlacementSpot spot, Vector2 screenPosition)
+    {
+        if (spot == null || menuController == null)
+        {
+            return;
+        }
+
+        if (spot.HasDefender)
+        {
+            return;
+        }
+
+        menuController.ShowPlacementMenu(spot, screenPosition);
+    }
+
+    public bool TryPlaceDefender(DefenderPlacementSpot spot, DefenderDefinition definition)
+    {
+        if (spot == null || definition == null)
+        {
+            return false;
+        }
+
+        if (GameManager.Instance != null && !GameManager.Instance.TryPurchaseDefender(definition.Cost))
+        {
+            return false;
+        }
+
+        DefenderHealth health = SpawnDefender(spot.transform.position, definition);
+        if (health == null)
+        {
+            return false;
+        }
+
+        spot.SetDefender(health);
+        RegisterDefender(health, definition, spot, 0, definition.Cost);
+        return true;
+    }
+
+    public bool TryUpgradeDefender(DefenderHealth defender)
+    {
+        if (!TryGetInstanceData(defender, out DefenderInstanceData data))
+        {
+            return false;
+        }
+
+        DefenderUpgradeStep step = GetNextUpgradeStep(data);
+        if (step == null)
+        {
+            return false;
+        }
+
+        if (GameManager.Instance != null && !GameManager.Instance.TryPurchaseDefender(step.Cost))
+        {
+            return false;
+        }
+
+        DefenderPlacementSpot spot = GetSpotForDefender(defender);
+        if (spot == null)
+        {
+            return false;
+        }
+
+        DefenderHealth upgraded = CreateUpgradedDefender(data.Definition, step, spot.transform.position);
+        if (upgraded == null)
+        {
+            return false;
+        }
+
+        ReplaceDefender(defender, upgraded, spot);
+
+        int newLevel = data.UpgradeLevel + 1;
+        RegisterDefender(upgraded, data.Definition, spot, newLevel, data.InvestedCost + step.Cost);
+        return true;
+    }
+
+    public int GetUpgradeCost(DefenderHealth defender)
+    {
+        if (!TryGetInstanceData(defender, out DefenderInstanceData data))
+        {
+            return 0;
+        }
+
+        DefenderUpgradeStep step = GetNextUpgradeStep(data);
+        return step != null ? step.Cost : 0;
+    }
+
+    public string GetUpgradeLabel(DefenderHealth defender)
+    {
+        if (!TryGetInstanceData(defender, out DefenderInstanceData data))
+        {
+            return "Upgrade";
+        }
+
+        DefenderUpgradeStep step = GetNextUpgradeStep(data);
+        return step != null && !string.IsNullOrEmpty(step.Label) ? step.Label : "Upgrade";
+    }
+
+    public bool CanUpgrade(DefenderHealth defender)
+    {
+        if (!TryGetInstanceData(defender, out DefenderInstanceData data))
+        {
+            return false;
+        }
+
+        return GetNextUpgradeStep(data) != null;
+    }
+
+    public int GetSellRefund(DefenderHealth defender)
+    {
+        if (!TryGetInstanceData(defender, out DefenderInstanceData data))
+        {
+            return 0;
+        }
+
+        return Mathf.RoundToInt(data.InvestedCost * 0.5f);
+    }
+
+    public bool TrySellDefender(DefenderHealth defender)
+    {
+        if (!TryGetInstanceData(defender, out DefenderInstanceData data))
+        {
+            return false;
+        }
+
+        int refund = Mathf.RoundToInt(data.InvestedCost * 0.5f);
+        if (refund > 0)
+        {
+            GameManager.Instance?.AddMoney(refund);
+        }
+
+        DefenderPlacementSpot spot = GetSpotForDefender(defender);
+        if (spot != null)
+        {
+            spot.SetDefender(null);
+        }
+
+        ReleaseAndCleanupDefender(defender);
+        return true;
+    }
+
+    private void RegisterDefender(DefenderHealth defender, DefenderDefinition definition, DefenderPlacementSpot spot, int upgradeLevel, int investedCost)
+    {
+        if (defender == null || definition == null || spot == null)
+        {
+            return;
+        }
+
+        defender.Died -= HandleDefenderDied;
+        defender.Died += HandleDefenderDied;
+
+        defenderInstances[defender] = new DefenderInstanceData
+        {
+            Definition = definition,
+            UpgradeLevel = Mathf.Max(0, upgradeLevel),
+            InvestedCost = Mathf.Max(0, investedCost)
+        };
+        defenderSpots[defender] = spot;
+    }
+
+    private bool TryGetInstanceData(DefenderHealth defender, out DefenderInstanceData data)
+    {
+        if (defender == null)
+        {
+            data = null;
+            return false;
+        }
+
+        return defenderInstances.TryGetValue(defender, out data);
+    }
+
+    private DefenderUpgradeStep GetNextUpgradeStep(DefenderInstanceData data)
+    {
+        if (data == null || data.Definition == null)
+        {
+            return null;
+        }
+
+        IReadOnlyList<DefenderUpgradeStep> steps = data.Definition.UpgradeSteps;
+        if (steps == null)
+        {
+            return null;
+        }
+
+        if (data.UpgradeLevel < 0 || data.UpgradeLevel >= steps.Count)
+        {
+            return null;
+        }
+
+        return steps[data.UpgradeLevel];
+    }
+
+    private DefenderHealth CreateUpgradedDefender(DefenderDefinition definition, DefenderUpgradeStep step, Vector3 spotPosition)
+    {
+        if (definition == null || step == null)
+        {
+            return null;
+        }
+
+        DefenderDefinition upgradedDefinition = definition;
+        GameObject prefabOverride = step.Prefab;
+
+        DefenderHealth health = CreateDefenderInstance(upgradedDefinition, prefabOverride);
+        if (health == null)
+        {
+            return null;
+        }
+
+        Vector3 spawnPosition = spotPosition + Vector3.up * upgradedDefinition.HeightOffset;
+        GameObject defenderObject = health.gameObject;
+        defenderObject.transform.SetParent(defenderContainer, false);
+        defenderObject.transform.position = spawnPosition;
+
+        if (prefabOverride == null || upgradedDefinition.ApplyOverridesToPrefab)
+        {
+            upgradedDefinition.ApplyVisualOverrides(defenderObject);
+        }
+
+        health.SetReleaseAction(usePooling ? ReleaseDefender : null);
+
+        float upgradedHealth = Mathf.Max(0.1f, upgradedDefinition.MaxHealth * step.HealthMultiplier);
+        float upgradedDamage = Mathf.Max(0f, upgradedDefinition.Damage * step.DamageMultiplier);
+
+        health.Initialize(upgradedHealth);
+
+        DefenderAttack attack = ComponentUtils.GetOrAddComponent<DefenderAttack>(defenderObject);
+        attack.Configure(upgradedDefinition.Range, upgradedDefinition.AttackInterval, upgradedDamage, enemyTargetMask);
+        attack.ConfigureMovement(spawnPosition, upgradedDefinition.MoveRadius, upgradedDefinition.MoveSpeed, upgradedDefinition.TurnSpeed, terrain);
+
+        if (usePooling)
+        {
+            defenderObject.SetActive(true);
+        }
+
+        return health;
+    }
+
+    private void ReplaceDefender(DefenderHealth current, DefenderHealth replacement, DefenderPlacementSpot spot)
+    {
+        if (spot == null || replacement == null)
+        {
+            return;
+        }
+
+        spot.SetDefender(replacement);
+        ReleaseAndCleanupDefender(current);
+    }
+
+    private DefenderPlacementSpot GetSpotForDefender(DefenderHealth defender)
+    {
+        if (defender == null)
+        {
+            return null;
+        }
+
+        defenderSpots.TryGetValue(defender, out DefenderPlacementSpot spot);
+        return spot;
+    }
+
+    private void ReleaseAndCleanupDefender(DefenderHealth defender)
+    {
+        if (defender == null)
+        {
+            return;
+        }
+
+        defender.Died -= HandleDefenderDied;
+        defenderInstances.Remove(defender);
+        defenderSpots.Remove(defender);
+        ReleaseDefender(defender);
+        menuController?.NotifyDefenderRemoved(defender);
+    }
+
+    private void HandleDefenderDied(DefenderHealth defender)
+    {
+        if (defender == null)
+        {
+            return;
+        }
+
+        defenderInstances.Remove(defender);
+        defenderSpots.Remove(defender);
+        menuController?.NotifyDefenderRemoved(defender);
+    }
+
     private DefenderDefinition CreateBasicFallback()
     {
-        return new DefenderDefinition
+        DefenderDefinition basic = new DefenderDefinition
         {
             Id = "basic",
             DisplayName = "Basic Ally",
@@ -305,6 +736,25 @@ public class DefenderPlacementManager : MonoBehaviour
             MoveSpeed = defenderMoveSpeed,
             TurnSpeed = defenderTurnSpeed
         };
+
+        if (basic.UpgradeSteps == null || basic.UpgradeSteps.Count == 0)
+        {
+            basic.SetUpgradeSteps(BuildUpgradeSteps(
+                basicMiscUpgradePrefab,
+                basicHealthUpgradePrefab,
+                basicFullUpgradePrefab,
+                basicMiscUpgradeCost,
+                basicHealthUpgradeCost,
+                basicFullUpgradeCost,
+                basicMiscHealthMultiplier,
+                basicMiscDamageMultiplier,
+                basicHealthHealthMultiplier,
+                basicHealthDamageMultiplier,
+                basicFullHealthMultiplier,
+                basicFullDamageMultiplier));
+        }
+
+        return basic;
     }
 
     private DefenderDefinition CreateAdvancedFallback(DefenderDefinition basic)
@@ -314,7 +764,7 @@ public class DefenderPlacementManager : MonoBehaviour
             basic = CreateBasicFallback();
         }
 
-        return basic.CloneWithOverrides(
+        DefenderDefinition advanced = basic.CloneWithOverrides(
             "advanced",
             advancedDefenderName,
             Mathf.Max(0, advancedDefenderCost),
@@ -329,6 +779,80 @@ public class DefenderPlacementManager : MonoBehaviour
             advancedColor,
             advancedDefenderPrefab,
             applyOverridesToAdvancedPrefab);
+
+        if (advanced != null && (advanced.UpgradeSteps == null || advanced.UpgradeSteps.Count == 0))
+        {
+            advanced.SetUpgradeSteps(BuildUpgradeSteps(
+                advancedMiscUpgradePrefab,
+                advancedHealthUpgradePrefab,
+                advancedFullUpgradePrefab,
+                advancedMiscUpgradeCost,
+                advancedHealthUpgradeCost,
+                advancedFullUpgradeCost,
+                advancedMiscHealthMultiplier,
+                advancedMiscDamageMultiplier,
+                advancedHealthHealthMultiplier,
+                advancedHealthDamageMultiplier,
+                advancedFullHealthMultiplier,
+                advancedFullDamageMultiplier));
+        }
+
+        return advanced;
+    }
+
+    private List<DefenderUpgradeStep> BuildUpgradeSteps(
+        GameObject miscPrefab,
+        GameObject healthPrefab,
+        GameObject fullPrefab,
+        int miscCost,
+        int healthCost,
+        int fullCost,
+        float miscHealthMultiplier,
+        float miscDamageMultiplier,
+        float healthHealthMultiplier,
+        float healthDamageMultiplier,
+        float fullHealthMultiplier,
+        float fullDamageMultiplier)
+    {
+        var steps = new List<DefenderUpgradeStep>();
+
+        if (miscPrefab != null)
+        {
+            steps.Add(new DefenderUpgradeStep
+            {
+                Label = "Upgrade: Misc",
+                Prefab = miscPrefab,
+                Cost = miscCost,
+                HealthMultiplier = miscHealthMultiplier,
+                DamageMultiplier = miscDamageMultiplier
+            });
+        }
+
+        if (healthPrefab != null)
+        {
+            steps.Add(new DefenderUpgradeStep
+            {
+                Label = "Upgrade: Health",
+                Prefab = healthPrefab,
+                Cost = healthCost,
+                HealthMultiplier = healthHealthMultiplier,
+                DamageMultiplier = healthDamageMultiplier
+            });
+        }
+
+        if (fullPrefab != null)
+        {
+            steps.Add(new DefenderUpgradeStep
+            {
+                Label = "Upgrade: Full",
+                Prefab = fullPrefab,
+                Cost = fullCost,
+                HealthMultiplier = fullHealthMultiplier,
+                DamageMultiplier = fullDamageMultiplier
+            });
+        }
+
+        return steps;
     }
 
     private void BuildPlacementSpots()
@@ -502,7 +1026,8 @@ public class DefenderPlacementManager : MonoBehaviour
 
         if (usePooling)
         {
-            Queue<DefenderHealth> pool = GetPool(definition);
+            DefenderPoolKey key = new DefenderPoolKey(definition, definition.Prefab);
+            Queue<DefenderHealth> pool = GetPool(key);
             if (pool.Count > 0)
             {
                 return pool.Dequeue();
@@ -512,12 +1037,12 @@ public class DefenderPlacementManager : MonoBehaviour
         return CreateDefenderInstance(definition);
     }
 
-    private Queue<DefenderHealth> GetPool(DefenderDefinition definition)
+    private Queue<DefenderHealth> GetPool(DefenderPoolKey key)
     {
-        if (!defenderPools.TryGetValue(definition, out Queue<DefenderHealth> pool))
+        if (!defenderPools.TryGetValue(key, out Queue<DefenderHealth> pool))
         {
             pool = new Queue<DefenderHealth>();
-            defenderPools.Add(definition, pool);
+            defenderPools.Add(key, pool);
         }
 
         return pool;
@@ -525,13 +1050,18 @@ public class DefenderPlacementManager : MonoBehaviour
 
     private DefenderHealth CreateDefenderInstance(DefenderDefinition definition)
     {
+        return CreateDefenderInstance(definition, definition != null ? definition.Prefab : null);
+    }
+
+    private DefenderHealth CreateDefenderInstance(DefenderDefinition definition, GameObject prefabOverride)
+    {
         if (definition == null)
         {
             return null;
         }
 
-        GameObject defenderObject = definition.Prefab != null
-            ? Instantiate(definition.Prefab)
+        GameObject defenderObject = prefabOverride != null
+            ? Instantiate(prefabOverride)
             : GameObject.CreatePrimitive(PrimitiveType.Cube);
 
         defenderObject.name = "Defender";
@@ -545,7 +1075,7 @@ public class DefenderPlacementManager : MonoBehaviour
 
         DefenderHealth health = ComponentUtils.GetOrAddComponent<DefenderHealth>(defenderObject);
         ComponentUtils.GetOrAddComponent<DefenderAttack>(defenderObject);
-        defenderDefinitions[health] = definition;
+        defenderPoolKeys[health] = new DefenderPoolKey(definition, prefabOverride);
 
         return health;
     }
@@ -557,42 +1087,30 @@ public class DefenderPlacementManager : MonoBehaviour
             return;
         }
 
-        defenderDefinitions.TryGetValue(defender, out DefenderDefinition definition);
+        defenderPoolKeys.TryGetValue(defender, out DefenderPoolKey key);
 
         if (!usePooling)
         {
-            defenderDefinitions.Remove(defender);
+            defenderPoolKeys.Remove(defender);
             Destroy(defender.gameObject);
             return;
         }
 
-        if (definition == null)
+        if (key.Definition == null)
         {
-            defenderDefinitions.Remove(defender);
+            defenderPoolKeys.Remove(defender);
             Destroy(defender.gameObject);
             return;
         }
 
         defender.transform.SetParent(defenderContainer, false);
         defender.gameObject.SetActive(false);
-        GetPool(definition).Enqueue(defender);
+        GetPool(key).Enqueue(defender);
     }
 
-    public DefenderHealth SpawnDefender(Vector3 spotPosition)
+    private DefenderHealth SpawnDefender(Vector3 spotPosition, DefenderDefinition definition)
     {
-        EnsureDefenderTypes();
-        if (selectedDefender == null)
-        {
-            SelectDefender(GetDefaultDefender());
-        }
-
-        DefenderDefinition definition = selectedDefender;
         if (definition == null)
-        {
-            return null;
-        }
-
-        if (GameManager.Instance != null && !GameManager.Instance.TryPurchaseDefender(definition.Cost))
         {
             return null;
         }

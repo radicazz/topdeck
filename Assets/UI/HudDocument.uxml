@@ -11,13 +11,6 @@
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <ui:VisualElement class="hud-bottom">
-            <ui:VisualElement class="hud-panel defender-panel">
-                <ui:Label name="defender-title" class="hud-label hud-label--section" text="Defenders" />
-                <ui:VisualElement name="defender-options" class="defender-options" />
-            </ui:VisualElement>
-        </ui:VisualElement>
-
         <ui:VisualElement name="menu-overlay" class="menu-overlay hidden">
             <ui:VisualElement class="menu-panel">
                 <ui:Label name="game-over" class="menu-title" text="GAME OVER" />
@@ -36,6 +29,13 @@
                     <ui:Button name="resume-button" class="menu-button menu-button--primary" text="Resume" />
                     <ui:Button name="quit-button" class="menu-button menu-button--secondary" text="Quit" />
                 </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="defender-menu" class="defender-menu hidden">
+            <ui:VisualElement class="defender-menu-panel">
+                <ui:Label name="defender-menu-title" class="menu-subtitle defender-menu-title" text="Choose Defender" />
+                <ui:VisualElement name="defender-menu-buttons" class="menu-button-group" />
             </ui:VisualElement>
         </ui:VisualElement>
 

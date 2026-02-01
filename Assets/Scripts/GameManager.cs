@@ -199,6 +199,17 @@ public class GameManager : MonoBehaviour
         MoneyChanged?.Invoke(currentMoney);
     }
 
+    public void AddMoney(int amount)
+    {
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        currentMoney += amount;
+        MoneyChanged?.Invoke(currentMoney);
+    }
+
     private void BeginNextRound()
     {
         if (!hasStarted)

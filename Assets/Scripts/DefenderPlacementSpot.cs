@@ -18,18 +18,26 @@ public class DefenderPlacementSpot : MonoBehaviour
         SetColor(availableColor);
     }
 
+    public bool HasDefender => occupied && defender != null;
+    public DefenderHealth CurrentDefender => defender;
+
     public void TryPlace()
     {
-        if (occupied || manager == null || GameManager.IsGameOver || !GameManager.IsGameStarted)
+        if (manager == null || GameManager.IsGameOver || !GameManager.IsGameStarted)
         {
             return;
         }
 
-        defender = manager.SpawnDefender(transform.position);
-        AssignDefender(defender);
+        if (occupied)
+        {
+            manager.HandleSpotClicked(this);
+            return;
+        }
+
+        manager.HandleSpotClicked(this);
     }
 
-    private void AssignDefender(DefenderHealth newDefender)
+    public void SetDefender(DefenderHealth newDefender)
     {
         if (defender != null)
         {
