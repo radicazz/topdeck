@@ -1,4 +1,7 @@
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 public class OrbitCameraController : MonoBehaviour
 {
@@ -56,21 +59,21 @@ public class OrbitCameraController : MonoBehaviour
         }
 
         float orbitInput = 0f;
-        if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow))
+        if (IsKeyPressed(KeyCode.A) || IsKeyPressed(KeyCode.LeftArrow))
         {
             orbitInput -= 1f;
         }
-        if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow))
+        if (IsKeyPressed(KeyCode.D) || IsKeyPressed(KeyCode.RightArrow))
         {
             orbitInput += 1f;
         }
 
         float zoomInput = 0f;
-        if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow))
+        if (IsKeyPressed(KeyCode.W) || IsKeyPressed(KeyCode.UpArrow))
         {
             zoomInput -= 1f;
         }
-        if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow))
+        if (IsKeyPressed(KeyCode.S) || IsKeyPressed(KeyCode.DownArrow))
         {
             zoomInput += 1f;
         }
@@ -182,5 +185,39 @@ public class OrbitCameraController : MonoBehaviour
         desiredPitch = Mathf.Asin(Mathf.Clamp(toCamera.normalized.y, -1f, 1f)) * Mathf.Rad2Deg;
         desiredPitch = Mathf.Clamp(desiredPitch, minPitch, maxPitch);
         hasInitialized = true;
+    }
+
+    private bool IsKeyPressed(KeyCode key)
+    {
+#if ENABLE_INPUT_SYSTEM
+        if (Keyboard.current == null)
+        {
+            return false;
+        }
+
+        switch (key)
+        {
+            case KeyCode.A:
+                return Keyboard.current.aKey.isPressed;
+            case KeyCode.D:
+                return Keyboard.current.dKey.isPressed;
+            case KeyCode.W:
+                return Keyboard.current.wKey.isPressed;
+            case KeyCode.S:
+                return Keyboard.current.sKey.isPressed;
+            case KeyCode.LeftArrow:
+                return Keyboard.current.leftArrowKey.isPressed;
+            case KeyCode.RightArrow:
+                return Keyboard.current.rightArrowKey.isPressed;
+            case KeyCode.UpArrow:
+                return Keyboard.current.upArrowKey.isPressed;
+            case KeyCode.DownArrow:
+                return Keyboard.current.downArrowKey.isPressed;
+            default:
+                return false;
+        }
+#else
+        return Input.GetKey(key);
+#endif
     }
 }
