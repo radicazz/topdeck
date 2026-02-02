@@ -21,6 +21,11 @@ public class TowerAttack : MonoBehaviour
         hitBuffer = new Collider[Mathf.Max(1, queryBufferSize)];
     }
 
+    public float Range => range;
+    public float AttackInterval => attackInterval;
+    public float DamagePerShot => damagePerShot;
+    public LayerMask TargetMask => targetMask;
+
     public void Configure(float newRange, float interval, float damage, LayerMask mask)
     {
         range = newRange;

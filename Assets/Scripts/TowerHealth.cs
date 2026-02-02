@@ -11,11 +11,20 @@ public class TowerHealth : MonoBehaviour
     public event System.Action Died;
 
     public float CurrentHealth => currentHealth;
+    public float MaxHealth => maxHealth;
 
     private void Awake()
     {
         currentHealth = maxHealth;
         isDead = false;
+        HealthChanged?.Invoke(currentHealth);
+    }
+
+    public void Initialize(float newMaxHealth, bool healToFull = true)
+    {
+        maxHealth = Mathf.Max(0.1f, newMaxHealth);
+        currentHealth = healToFull ? maxHealth : Mathf.Min(currentHealth, maxHealth);
+        isDead = currentHealth <= 0f;
         HealthChanged?.Invoke(currentHealth);
     }
 
