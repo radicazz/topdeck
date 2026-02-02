@@ -367,26 +367,8 @@ public class Enemy : MonoBehaviour
             return height;
         }
 
-        float top = float.MinValue;
-        for (int i = 0; i < renderers.Length; i++)
+        if (HealthBarUtils.TryGetMaxLocalY(transform, renderers, out float localTop))
         {
-            Renderer renderer = renderers[i];
-            if (renderer == null)
-            {
-                continue;
-            }
-
-            if (renderer.GetComponentInParent<EnemyHealthBar>() != null)
-            {
-                continue;
-            }
-
-            top = Mathf.Max(top, renderer.bounds.max.y);
-        }
-
-        if (top > float.MinValue)
-        {
-            float localTop = top - transform.position.y;
             height = Mathf.Max(height, localTop + 0.2f);
         }
 
