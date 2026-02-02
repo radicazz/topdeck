@@ -11,6 +11,9 @@ public class DefenderPlacementManager : MonoBehaviour
     [SerializeField] private ProceduralTerrainGenerator terrain;
     [SerializeField] private DefenderContextMenuController menuController;
 
+    [Header("Input")]
+    [SerializeField] private LayerMask clickRaycastMask = ~0;
+
     [Header("Placement Spots")]
     [SerializeField, Min(1)] private int placementCount = 12;
     [SerializeField] private float spotScale = 0.4f;
@@ -231,7 +234,7 @@ public class DefenderPlacementManager : MonoBehaviour
         }
 
         Ray ray = cameraToUse.ScreenPointToRay(screenPosition);
-        RaycastHit[] hits = Physics.RaycastAll(ray);
+        RaycastHit[] hits = Physics.RaycastAll(ray, Mathf.Infinity, clickRaycastMask);
         if (hits != null && hits.Length > 0)
         {
             DefenderHealth defender = null;

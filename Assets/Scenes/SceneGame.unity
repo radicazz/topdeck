@@ -836,6 +836,9 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 256
   queryBufferSize: 32
+  rotateTowardsTarget: 1
+  rotateYawOnly: 1
+  rotationSpeed: 10
   useProjectiles: 1
   projectileSpawnOffset: {x: 0, y: 0.5, z: 0}
 --- !u!114 &1046336160
@@ -1197,6 +1200,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DefenderPlacementManager
   terrain: {fileID: 0}
   menuController: {fileID: 0}
+  clickRaycastMask:
+    serializedVersion: 2
+    m_Bits: 1537
   placementCount: 16
   spotScale: 0.4
   spotHeightOffset: 0.1
