@@ -34,6 +34,10 @@ public class TowerUpgradeManager : MonoBehaviour
     [SerializeField] private float finalHealthMultiplier = 2.0f;
     [SerializeField] private float finalDamageMultiplier = 2.0f;
 
+    [Header("VFX")]
+    [SerializeField] private GameObject upgradeVfxPrefab;
+    [SerializeField, Min(0.1f)] private float upgradeVfxLifetime = 2.5f;
+
     [Header("State")]
     [SerializeField] private int upgradeLevel;
 
@@ -112,6 +116,7 @@ public class TowerUpgradeManager : MonoBehaviour
         }
 
         ApplyUpgradeStep(step);
+        SpawnUpgradeVfx(transform.position);
         upgradeLevel = Mathf.Clamp(upgradeLevel + 1, 0, upgradeSteps.Count);
         return true;
     }
@@ -210,6 +215,36 @@ public class TowerUpgradeManager : MonoBehaviour
         instanceTransform.localRotation = Quaternion.identity;
         instanceTransform.localScale = Vector3.one;
         currentVisual = instance;
+    }
+
+    private void SpawnUpgradeVfx(Vector3 position)
+    {
+        if (upgradeVfxPrefab == null)
+        {
+            return;
+        }
+
+        GameObject instance = Instantiate(upgradeVfxPrefab, position, Quaternion.identity);
+        if (instance == null)
+        {
+            return;
+        }
+
+        ParticleSystem particle = instance.GetComponentInChildren<ParticleSystem>();
+        if (particle == null)
+        {
+            Destroy(instance, upgradeVfxLifetime);
+            return;
+        }
+
+        float lifetime = upgradeVfxLifetime;
+        ParticleSystem.MainModule main = particle.main;
+        if (!main.loop)
+        {
+            lifetime = main.duration + main.startLifetime.constantMax;
+        }
+
+        Destroy(instance, Mathf.Max(0.1f, lifetime));
     }
 
     private void ClearExistingVisuals()

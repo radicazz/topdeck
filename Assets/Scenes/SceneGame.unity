@@ -901,6 +901,8 @@ MonoBehaviour:
   fullDamageMultiplier: 1.6
   finalHealthMultiplier: 2
   finalDamageMultiplier: 2
+  upgradeVfxPrefab: {fileID: 370640065894275578, guid: 0ad4ac7199d7f9b4f8ec2f527801dec1, type: 3}
+  upgradeVfxLifetime: 2.5
   upgradeLevel: 0
 --- !u!65 &1046336166
 BoxCollider:
@@ -1320,6 +1322,8 @@ MonoBehaviour:
   advancedFullDamageMultiplier: 1.8
   usePooling: 1
   defenderPoolSize: 6
+  upgradeVfxPrefab: {fileID: 370640065894275578, guid: 0ad4ac7199d7f9b4f8ec2f527801dec1, type: 3}
+  upgradeVfxLifetime: 2.5
 --- !u!4 &1690561881
 Transform:
   m_ObjectHideFlags: 0

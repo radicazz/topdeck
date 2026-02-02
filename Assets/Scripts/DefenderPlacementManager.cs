@@ -92,6 +92,10 @@ public class DefenderPlacementManager : MonoBehaviour
     [SerializeField] private bool usePooling = true;
     [SerializeField, Min(0)] private int defenderPoolSize = 0;
 
+    [Header("VFX")]
+    [SerializeField] private GameObject upgradeVfxPrefab;
+    [SerializeField, Min(0.1f)] private float upgradeVfxLifetime = 2.5f;
+
     private readonly List<DefenderPlacementSpot> spots = new List<DefenderPlacementSpot>();
     private readonly Dictionary<DefenderPoolKey, Queue<DefenderHealth>> defenderPools = new Dictionary<DefenderPoolKey, Queue<DefenderHealth>>();
     private readonly Dictionary<DefenderHealth, DefenderPoolKey> defenderPoolKeys = new Dictionary<DefenderHealth, DefenderPoolKey>();
@@ -552,6 +556,7 @@ public class DefenderPlacementManager : MonoBehaviour
         }
 
         ReplaceDefender(defender, upgraded, spot);
+        SpawnUpgradeVfx(upgraded.transform.position);
 
         int newLevel = data.UpgradeLevel + 1;
         RegisterDefender(upgraded, data.Definition, spot, newLevel, data.InvestedCost + step.Cost);
@@ -765,6 +770,36 @@ public class DefenderPlacementManager : MonoBehaviour
         defenderInstances.Remove(defender);
         defenderSpots.Remove(defender);
         menuController?.NotifyDefenderRemoved(defender);
+    }
+
+    private void SpawnUpgradeVfx(Vector3 position)
+    {
+        if (upgradeVfxPrefab == null)
+        {
+            return;
+        }
+
+        GameObject instance = Instantiate(upgradeVfxPrefab, position, Quaternion.identity);
+        if (instance == null)
+        {
+            return;
+        }
+
+        ParticleSystem particle = instance.GetComponentInChildren<ParticleSystem>();
+        if (particle == null)
+        {
+            Destroy(instance, upgradeVfxLifetime);
+            return;
+        }
+
+        float lifetime = upgradeVfxLifetime;
+        ParticleSystem.MainModule main = particle.main;
+        if (!main.loop)
+        {
+            lifetime = main.duration + main.startLifetime.constantMax;
+        }
+
+        Destroy(instance, Mathf.Max(0.1f, lifetime));
     }
 
     private DefenderDefinition CreateBasicFallback()
