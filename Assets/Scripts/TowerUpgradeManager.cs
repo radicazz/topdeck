@@ -201,10 +201,7 @@ public class TowerUpgradeManager : MonoBehaviour
             return;
         }
 
-        if (currentVisual != null)
-        {
-            Destroy(currentVisual);
-        }
+        ClearExistingVisuals();
 
         GameObject instance = Instantiate(prefab, visualRoot);
         instance.name = "TowerVisual";
@@ -213,5 +210,29 @@ public class TowerUpgradeManager : MonoBehaviour
         instanceTransform.localRotation = Quaternion.identity;
         instanceTransform.localScale = Vector3.one;
         currentVisual = instance;
+    }
+
+    private void ClearExistingVisuals()
+    {
+        if (visualRoot == null)
+        {
+            return;
+        }
+
+        for (int i = visualRoot.childCount - 1; i >= 0; i--)
+        {
+            Transform child = visualRoot.GetChild(i);
+            if (child == null)
+            {
+                continue;
+            }
+
+            if (child.gameObject == currentVisual || child.name == "TowerVisual")
+            {
+                Destroy(child.gameObject);
+            }
+        }
+
+        currentVisual = null;
     }
 }
