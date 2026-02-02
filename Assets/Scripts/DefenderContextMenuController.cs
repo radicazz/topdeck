@@ -35,7 +35,7 @@ public class DefenderContextMenuController : MonoBehaviour
 
 #if UNITY_EDITOR
     [Header("Debug (Editor Only)")]
-    [SerializeField] private bool showDebugOverlay = true;
+    [SerializeField] private bool showDebugOverlay = false;
     [SerializeField] private Vector2 debugOverlayOffset = new Vector2(16f, 16f);
     private const string DebugOverlayPrefKey = "Topdeck.DefenderMenuDebugOverlay";
 #endif
