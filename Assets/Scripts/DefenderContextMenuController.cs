@@ -21,6 +21,7 @@ public class DefenderContextMenuController : MonoBehaviour
     private VisualElement menuButtons;
     private DefenderPlacementSpot activeSpot;
     private DefenderHealth activeDefender;
+    private TowerUpgradeManager activeTower;
     private GameManager boundGameManager;
     private Vector2 lastScreenPosition;
     private bool callbacksRegistered;
@@ -199,6 +200,7 @@ public class DefenderContextMenuController : MonoBehaviour
 
         activeSpot = spot;
         activeDefender = null;
+        activeTower = null;
         if (logMenuEvents)
         {
             Debug.Log($"DefenderContextMenuController: Showing placement menu for spot '{spot.name}'.");
@@ -247,6 +249,7 @@ public class DefenderContextMenuController : MonoBehaviour
 
         activeSpot = null;
         activeDefender = defender;
+        activeTower = null;
         if (logMenuEvents)
         {
             Debug.Log($"DefenderContextMenuController: Showing upgrade menu for defender '{defender.name}'.");
@@ -292,6 +295,57 @@ public class DefenderContextMenuController : MonoBehaviour
         ShowMenuAt(screenPosition);
     }
 
+    public void ShowTowerUpgradeMenu(TowerUpgradeManager tower, Vector2 screenPosition)
+    {
+        if (menuRoot == null || tower == null)
+        {
+            if (menuRoot == null && !warnedMissingMenu)
+            {
+                Debug.LogWarning("DefenderContextMenuController: Menu root is missing; cannot show tower upgrade menu.");
+                warnedMissingMenu = true;
+            }
+            return;
+        }
+
+        activeSpot = null;
+        activeDefender = null;
+        activeTower = tower;
+        if (logMenuEvents)
+        {
+            Debug.Log($"DefenderContextMenuController: Showing upgrade menu for tower '{tower.name}'.");
+        }
+
+        if (menuTitle != null)
+        {
+            menuTitle.text = "Tower Options";
+        }
+
+        menuButtons?.Clear();
+        if (menuButtons != null)
+        {
+            Button upgradeButton = new Button(HandleUpgradeClicked);
+            if (!tower.CanUpgrade())
+            {
+                upgradeButton.text = "Upgrade (Max)";
+                upgradeButton.SetEnabled(false);
+            }
+            else
+            {
+                int upgradeCost = tower.GetUpgradeCost();
+                string label = tower.GetUpgradeLabel();
+                upgradeButton.text = $"{label} ${upgradeCost}";
+                bool canAfford = boundGameManager == null || boundGameManager.CanAfford(upgradeCost);
+                upgradeButton.SetEnabled(canAfford);
+            }
+            upgradeButton.AddToClassList("menu-button");
+            upgradeButton.AddToClassList("menu-button--primary");
+            menuButtons.Add(upgradeButton);
+        }
+
+        lastScreenPosition = screenPosition;
+        ShowMenuAt(screenPosition);
+    }
+
     public void HideMenu()
     {
         if (menuRoot == null)
@@ -307,6 +361,7 @@ public class DefenderContextMenuController : MonoBehaviour
         menuRoot.EnableInClassList("hidden", true);
         activeSpot = null;
         activeDefender = null;
+        activeTower = null;
     }
 
     public bool IsPointerOverMenu(Vector2 screenPosition)
@@ -381,8 +436,23 @@ public class DefenderContextMenuController : MonoBehaviour
 
     private void HandleUpgradeClicked()
     {
-        if (activeDefender == null || placementManager == null)
+        if (activeTower == null && (activeDefender == null || placementManager == null))
         {
+            return;
+        }
+
+        if (activeTower != null)
+        {
+            if (activeTower.TryUpgradeTower())
+            {
+                Debug.Log("Tower upgraded.");
+                HideMenu();
+            }
+            else
+            {
+                Debug.LogWarning("Failed to upgrade tower.");
+                RefreshButtons();
+            }
             return;
         }
 
@@ -400,6 +470,11 @@ public class DefenderContextMenuController : MonoBehaviour
 
     private void HandleSellClicked()
     {
+        if (activeTower != null)
+        {
+            return;
+        }
+
         if (activeDefender == null || placementManager == null)
         {
             return;
@@ -432,6 +507,12 @@ public class DefenderContextMenuController : MonoBehaviour
         if (activeSpot != null)
         {
             ShowPlacementMenu(activeSpot, lastScreenPosition);
+            return;
+        }
+
+        if (activeTower != null)
+        {
+            ShowTowerUpgradeMenu(activeTower, lastScreenPosition);
             return;
         }
 

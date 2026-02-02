@@ -232,6 +232,8 @@ public class DefenderPlacementManager : MonoBehaviour
         {
             DefenderHealth defender = null;
             float defenderDistance = float.MaxValue;
+            TowerUpgradeManager tower = null;
+            float towerDistance = float.MaxValue;
             DefenderPlacementSpot spot = null;
             float spotDistance = float.MaxValue;
 
@@ -245,6 +247,13 @@ public class DefenderPlacementManager : MonoBehaviour
                     defenderDistance = hit.distance;
                 }
 
+                TowerUpgradeManager hitTower = hit.collider.GetComponentInParent<TowerUpgradeManager>();
+                if (hitTower != null && hit.distance < towerDistance)
+                {
+                    tower = hitTower;
+                    towerDistance = hit.distance;
+                }
+
                 DefenderPlacementSpot hitSpot = hit.collider.GetComponent<DefenderPlacementSpot>();
                 if (hitSpot != null && hit.distance < spotDistance)
                 {
@@ -256,6 +265,12 @@ public class DefenderPlacementManager : MonoBehaviour
             if (defender != null)
             {
                 menuController?.ShowUpgradeMenu(defender, screenPosition);
+                return;
+            }
+
+            if (tower != null)
+            {
+                menuController?.ShowTowerUpgradeMenu(tower, screenPosition);
                 return;
             }
 
