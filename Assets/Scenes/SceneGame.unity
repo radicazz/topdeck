@@ -971,6 +971,13 @@ MonoBehaviour:
   healthMultiplierPerRound: 0.15
   speedMultiplierPerRound: 0.05
   damageMultiplierPerRound: 0.1
+  maxHealthBonus: 2
+  maxSpeedBonus: 0.6
+  maxDamageBonus: 1.5
+  spawnIntervalReductionPerRound: 0.03
+  minSpawnIntervalMultiplier: 0.35
+  extraSpawnsPerIntervalPerRound: 0.05
+  maxExtraSpawnsPerInterval: 2
   startOnAwake: 0
   hasStarted: 0
   isGameOver: 0
@@ -1149,6 +1156,8 @@ MonoBehaviour:
     enrageSpeedMultiplier: 1.4
     enrageDamageMultiplier: 1.2
     enrageAttackIntervalMultiplier: 0.8
+  threatBiasPerRound: 0.02
+  maxThreatBias: 0.35
   enemyPrefab: {fileID: 5131611568467915952, guid: 2998649f15be6f547a79ee4c9a582b95, type: 3}
   enemyColor: {r: 1, g: 0.3, b: 0.3, a: 1}
   applyOverridesToPrefab: 0

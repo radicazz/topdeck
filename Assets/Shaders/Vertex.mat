@@ -54,10 +54,10 @@ Material:
     - _Balance: 0.5
     - _QueueControl: 0
     - _QueueOffset: 0
-    - _Speed: 0.2
+    - _Speed: 0.4
     - _Strength: 0.6
     m_Colors:
-    - _Base_Color: {r: 0.047490217, g: 0.6698113, b: 0.0031594948, a: 1}
-    - _Fresnel_Color: {r: 0.21698111, g: 0.1354664, b: 0.007164475, a: 1}
+    - _Base_Color: {r: 0.67058825, g: 0.003921554, b: 0.017609643, a: 1}
+    - _Fresnel_Color: {r: 0, g: 0.041056983, b: 0.16078432, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
