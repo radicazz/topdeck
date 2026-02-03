@@ -2,6 +2,13 @@
 
 Defend yourself against ever-increasingly brutal bug-themed attackers on procedurally-generated maps in this cross-platform tower-defense game.
 
+<details>
+<summary>🎬 Gameplay Preview</summary>
+
+![Gameplay Preview](Data/screen-cast.GIF)
+
+</details>
+
 ## 📋 Features
 
 - **Procedural terrain** generation with dynamic pathfinding
@@ -11,7 +18,7 @@ Defend yourself against ever-increasingly brutal bug-themed attackers on procedu
 
 ## 🚀 Quick Start
 
-1. Open the project in [Unity Hub](https://unity.com/download) with **Unity 6000.3.4f1**
+1. Open the project in [Unity Hub](https://unity.com/download)
 2. Open `Assets/Scenes/SceneGame.unity`
 3. Press Play in the Editor
 
