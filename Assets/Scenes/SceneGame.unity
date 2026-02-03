@@ -363,7 +363,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 40aaf9f30b6dc285099e76f06293c3df, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProjectileManager
-  projectilePrefab: {fileID: 1811755557574306084, guid: 743e785094ec59f4fafb3b3f28b76fd1, type: 3}
+  projectilePrefab: {fileID: 2176366929838365001, guid: a91bc0c364df64843a3b17633844a966, type: 3}
   poolWarmSize: 10
 --- !u!4 &246473436
 Transform:
