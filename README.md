@@ -28,3 +28,5 @@ Defend yourself against ever-increasingly brutal bug-themed attackers on procedu
 ## 📄 License
 
 See [LICENSE](LICENSE) for details.
+
+IMPORTANT NOTE: Ignore the package errors and run the game. The games seems to work.
